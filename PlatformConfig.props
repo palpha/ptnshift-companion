@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+    <PropertyGroup>
+        <IsRelease Condition=" '$(Configuration)' == 'Release MacOS' OR '$(Configuration)' == 'Release Windows' ">true</IsRelease>
+        <IsDebug Condition=" '$(Configuration)' == 'Debug MacOS' OR '$(Configuration)' == 'Debug Windows' ">true</IsDebug>
+        <IsWindows Condition=" '$(Configuration)' == 'Debug Windows' OR '$(Configuration)' == 'Release Windows' ">true</IsWindows>
+        <IsMacOS Condition=" '$(Configuration)' == 'Debug MacOS' OR '$(Configuration)' == 'Release MacOS' ">true</IsMacOS>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(IsRelease)' == 'true' ">
+        <Optimize Condition=" '$(Optimize)' == '' ">true</Optimize>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(IsDebug)' == 'true' ">
+        <DebugSymbols Condition=" '$(DebugSymbols)' == '' ">true</DebugSymbols>
+        <Optimize Condition=" '$(Optimize)' == '' ">false</Optimize>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(IsMacOS)' == 'true' ">
+        <DefineConstants>MACOS</DefineConstants>
+    </PropertyGroup>
+
+    <PropertyGroup Condition=" '$(IsWindows)' == 'true' ">
+        <DefineConstants>WINDOWS</DefineConstants>
+    </PropertyGroup>
+</Project>

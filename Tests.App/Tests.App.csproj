@@ -9,6 +9,8 @@
 
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
+        <Configurations>Release MacOS;Debug Windows;Debug MacOS;Release Windows</Configurations>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
 
     <ItemGroup>
@@ -28,7 +30,9 @@
       <ProjectReference Include="..\Core\Core.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
+    <Import Project="..\PlatformConfig.props" />
+
+    <ItemGroup Condition=" '$(IsMacOS)' == 'true' ">
         <None Include="../lib/libscreenstream.dylib">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <TargetPath>libscreenstream.dylib</TargetPath>

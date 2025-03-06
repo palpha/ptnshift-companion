@@ -12,8 +12,9 @@
         <PublishTrimmed>true</PublishTrimmed>
         <PublishReadyToRun>true</PublishReadyToRun>
         <EnableExperimentalJsonSerializer>true</EnableExperimentalJsonSerializer>
+        <Configurations>Release MacOS;Debug Windows;Debug MacOS;Release Windows</Configurations>
+        <Platforms>AnyCPU</Platforms>
     </PropertyGroup>
-
     <ItemGroup>
         <Folder Include="Models\"/>
         <AvaloniaResource Include="Assets\**"/>
@@ -38,7 +39,9 @@
         <ProjectReference Include="..\Core\Core.csproj" />
     </ItemGroup>
 
-    <ItemGroup>
+    <Import Project="..\PlatformConfig.props" />
+
+    <ItemGroup Condition=" '$(IsMacOS)' == 'true' ">
         <None Include="../lib/libscreenstream.dylib">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <TargetPath>libscreenstream.dylib</TargetPath>
