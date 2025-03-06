@@ -1,0 +1,51 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <OutputType>WinExe</OutputType>
+        <TargetFramework>net9.0</TargetFramework>
+        <Nullable>enable</Nullable>
+        <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
+        <ApplicationManifest>app.manifest</ApplicationManifest>
+        <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+        <AssemblyName>LiveshiftCompanion</AssemblyName>
+        <PublishSingleFile>true</PublishSingleFile>
+        <SelfContained>true</SelfContained>
+        <PublishTrimmed>true</PublishTrimmed>
+        <PublishReadyToRun>true</PublishReadyToRun>
+        <EnableExperimentalJsonSerializer>true</EnableExperimentalJsonSerializer>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Folder Include="Models\"/>
+        <AvaloniaResource Include="Assets\**"/>
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Avalonia" Version="11.2.5"/>
+        <PackageReference Include="Avalonia.Desktop" Version="11.2.5"/>
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5"/>
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5"/>
+        <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
+        <PackageReference Include="Avalonia.Diagnostics" Version="11.2.5">
+            <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
+            <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+        </PackageReference>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1"/>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-preview.1.25080.5" />
+        <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0-preview.1.25080.5" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <ProjectReference Include="..\Core\Core.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <None Include="../lib/libscreenstream.dylib">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>libscreenstream.dylib</TargetPath>
+        </None>
+        <None Include="../lib/libusb-1.0.0.dylib">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>libusb.dylib</TargetPath>
+        </None>
+    </ItemGroup>
+</Project>

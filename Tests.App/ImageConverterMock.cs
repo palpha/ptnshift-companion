@@ -5,8 +5,8 @@ namespace Tests.App;
 
 public class ImageConverterMock : IImageConverter
 {
-    public byte[] Input { get; set; }
-    public byte[] ExpectedOutput { get; set; }
+    public byte[] Input { get; set; } = null!;
+    public byte[] ExpectedOutput { get; set; } = null!;
     
     public void ConvertBgra24ToRgb16(ReadOnlySpan<byte> bgraBytes, Memory<byte> rgb16Bytes)
     {

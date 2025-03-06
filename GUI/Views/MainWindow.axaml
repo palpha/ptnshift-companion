@@ -1,0 +1,173 @@
+<Window xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:GUI.ViewModels"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+    x:Class="GUI.Views.MainWindow"
+    x:DataType="vm:MainWindowViewModel"
+    Icon="/Assets/avalonia-logo.ico"
+    Title="Liveshift Companion">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel />
+    </Design.DataContext>
+
+    <Grid>
+        <StackPanel>
+            <Panel.Effect>
+                <BlurEffect
+                    Radius="{Binding !IsCapturePermitted, Converter={StaticResource BoolToBlurRadiusConverter}}" />
+            </Panel.Effect>
+            <Grid>
+                <Image Source="{Binding ImageSource}"
+                    Width="960" Height="160"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Stretch="UniformToFill" />
+                <TextBlock Text="{Binding FrameRate, Converter={StaticResource FrameRateConverter}}"
+                    FontSize="10"
+                    Foreground="White"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Margin="12, 12, 0, 0" />
+                <ToggleSwitch
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Top"
+                    OnContent=""
+                    OffContent=""
+                    Margin="0,12,12,0"
+                    IsChecked="{Binding IsDevMode}" />
+            </Grid>
+            <Grid
+                RowDefinitions="Auto, Auto"
+                ColumnDefinitions="Auto, Auto, Auto, Auto"
+                Margin="12">
+
+                <Grid.Styles>
+                    <Style
+                        Selector="TextBlock, TextBox, ComboBox">
+                        <Setter Property="Margin" Value="0,0,8,8" />
+                    </Style>
+                    <Style Selector="TextBlock">
+                        <Setter Property="HorizontalAlignment" Value="Center" />
+                    </Style>
+                    <Style Selector="TextBox">
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="Width" Value="50" />
+                    </Style>
+                </Grid.Styles>
+                
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                    Text="Display"
+                    HorizontalAlignment="Left" />
+                <ComboBox Grid.Row="1" Grid.Column="0"
+                    ItemsSource="{Binding DisplayInfos}"
+                    SelectedItem="{Binding SelectedDisplayInfo}"
+                    VerticalContentAlignment="Bottom"
+                    HorizontalContentAlignment="Left"
+                    Width="250"
+                    Padding="8,8,0,0">
+                    <ComboBox.Styles>
+                        <Style Selector="ComboBoxItem">
+                            <Setter Property="Padding" Value="8,8,0,0" />
+                            <Setter Property="HorizontalContentAlignment" Value="Left" />
+                        </Style>
+                    </ComboBox.Styles>
+                </ComboBox>
+
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                    Text="X" />
+                <TextBox Grid.Row="1" Grid.Column="1"
+                    Text="{Binding CaptureX}" />
+
+                <TextBlock Grid.Row="0" Grid.Column="2"
+                    Text="Y" />
+                <TextBox Grid.Row="1" Grid.Column="2"
+                    Text="{Binding CaptureY}" />
+
+                <TextBlock Grid.Row="0" Grid.Column="3"
+                    Text="Capture FPS" />
+                <TextBox Grid.Row="1" Grid.Column="3"
+                    Text="{Binding CaptureFrameRate}" />
+            </Grid>
+            <Grid
+                RowDefinitions="Auto, Auto"
+                ColumnDefinitions="Auto, Auto, Auto"
+                Margin="12">
+                
+                <Grid.Styles>
+                    <Style
+                        Selector="TextBlock, TextBox, ComboBox">
+                        <Setter Property="Margin" Value="0,0,8,8" />
+                    </Style>
+                    <Style Selector="TextBlock">
+                        <Setter Property="HorizontalAlignment" Value="Center" />
+                    </Style>
+                    <Style Selector="TextBox">
+                        <Setter Property="VerticalContentAlignment" Value="Center" />
+                        <Setter Property="Width" Value="50" />
+                    </Style>
+                </Grid.Styles>
+
+                <TextBlock Grid.Row="0" Grid.Column="0"
+                    HorizontalAlignment="Left"
+                    Text="Capture" />
+                <ToggleSwitch Grid.Row="1" Grid.Column="0"
+                    IsChecked="{Binding IsCapturing, Mode=OneWay}"
+                    Command="{Binding ExecuteToggleCapture}" />
+
+                <TextBlock Grid.Row="0" Grid.Column="1"
+                    HorizontalAlignment="Left"
+                    Text="Preview" />
+                <ToggleSwitch Grid.Row="1" Grid.Column="1"
+                    IsChecked="{Binding IsPreviewEnabled}" />
+
+                <TextBlock Grid.Row="0" Grid.Column="2"
+                    HorizontalAlignment="Left"
+                    Text="Push" />
+                <ToggleSwitch Grid.Row="1" Grid.Column="2"
+                    IsChecked="{Binding IsConnected, Mode=OneWay}"
+                    Command="{Binding ExecuteToggleConnection}"
+                    OnContent="Connected"
+                    OffContent="Disconnected" />
+            </Grid>
+
+            <StackPanel IsVisible="{Binding IsDevMode}">
+                <WrapPanel Margin="0,0,0,12">
+                    <Button Content="Dump last frame" Command="{Binding ExecuteInspectLastFrame}" />
+                    <Button Content="Open frame dump file" Command="{Binding ExecuteOpenLastFrameDump}" />
+                </WrapPanel>
+                <TextBox Text="{Binding DebugOutput}"
+                    FontSize="17"
+                    MinHeight="99"
+                    Width="960"
+                    VerticalAlignment="Top"
+                    HorizontalAlignment="Center"
+                    Foreground="DarkGray"
+                    IsReadOnly="True"
+                    TextWrapping="Wrap">
+                </TextBox>
+            </StackPanel>
+        </StackPanel>
+
+        <Panel Background="#80000000"
+            IsVisible="{Binding !IsCapturePermitted}"
+            ZIndex="10"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch">
+
+            <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <Button Content="Check capture permission"
+                        Command="{Binding ExecuteCheckPermission}"
+                        HorizontalAlignment="Center"
+                        Margin="0,0,0,0" />
+                </StackPanel>
+            </Grid>
+        </Panel>
+    </Grid>
+
+</Window>
