@@ -13,24 +13,24 @@
         <PublishReadyToRun>true</PublishReadyToRun>
         <EnableExperimentalJsonSerializer>true</EnableExperimentalJsonSerializer>
         <Configurations>Release MacOS;Debug Windows;Debug MacOS;Release Windows</Configurations>
-        <Platforms>AnyCPU</Platforms>
+        <Platforms>AnyCPU;x64;ARM64</Platforms>
     </PropertyGroup>
     <ItemGroup>
-        <Folder Include="Models\"/>
-        <AvaloniaResource Include="Assets\**"/>
+        <Folder Include="Models\" />
+        <AvaloniaResource Include="Assets\**" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="11.2.5"/>
-        <PackageReference Include="Avalonia.Desktop" Version="11.2.5"/>
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5"/>
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5"/>
+        <PackageReference Include="Avalonia" Version="11.2.5" />
+        <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Include="Avalonia.Diagnostics" Version="11.2.5">
             <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
             <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
         </PackageReference>
-        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1"/>
+        <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-preview.1.25080.5" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0-preview.1.25080.5" />
     </ItemGroup>
@@ -51,4 +51,39 @@
             <TargetPath>libusb.dylib</TargetPath>
         </None>
     </ItemGroup>
+
+    <ItemGroup Condition=" '$(IsWindows)' == 'true' and '$(Platform)' == 'x64' ">
+        <None Include="../x64/Release/WinScreenStream.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>WinScreenStream.dll</TargetPath>
+        </None>
+        <None Include="../lib/libusb-1.0_x64.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>libusb.dll</TargetPath>
+        </None>
+    </ItemGroup>
+
+    <ItemGroup Condition=" '$(IsWindows)' == 'true' and '$(Platform)' == 'arm64' ">
+        <None Include="../ARM64/Release/WinScreenStream.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>WinScreenStream.dll</TargetPath>
+        </None>
+        <None Include="../lib/libusb-1.0_arm64.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <TargetPath>libusb.dll</TargetPath>
+        </None>
+    </ItemGroup>
+
+    <!-- after publish, copy dlls from build output to publish output directory -->
+    <Target Name="CopyDlls" AfterTargets="Publish">
+        <Copy SourceFiles="$(OutputPath)WinScreenStream.dll" DestinationFolder="$(PublishDir)" />
+        <Copy SourceFiles="$(OutputPath)libusb.dll" DestinationFolder="$(PublishDir)" />
+    </Target>
+
+    <PropertyGroup Condition="'$(Platform)' == 'x64'">
+        <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Platform)' == 'arm64'">
+        <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
+    </PropertyGroup>
 </Project>

@@ -8,6 +8,8 @@ public interface ICaptureEventSource
     void InvokeFrameCaptured(ReadOnlySpan<byte> frameBytes);
 }
 
+public delegate void ExceptionHandler(Exception exception);
+
 public interface IStreamer
 {
     ICaptureEventSource EventSource { get; }

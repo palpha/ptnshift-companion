@@ -7,6 +7,7 @@ namespace Tests.App;
 
 public class LibScreenStreamTests(ITestOutputHelper testOutputHelper)
 {
+#if MACOS
     private ITestOutputHelper TestOutputHelper { get; } = testOutputHelper;
 
     [Fact]
@@ -35,4 +36,5 @@ public class LibScreenStreamTests(ITestOutputHelper testOutputHelper)
 
         await semaphore.WaitAsync();
     }
+#endif
 }

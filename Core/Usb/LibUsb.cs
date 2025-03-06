@@ -8,11 +8,7 @@ namespace Core.Usb;
     "SYSLIB1054:Use \'LibraryImportAttribute\' instead of \'DllImportAttribute\' to generate P/Invoke marshalling code at compile time")]
 public static class LibUsb
 {
-    #if MACOS
-    private const string LibUsbLibrary = "libusb.dylib";
-    #elif WINDOWS
-    private const string LibUsbLibrary = "libusb.dll";
-    #endif
+    private const string LibUsbLibrary = "libusb";
 
     [DllImport(LibUsbLibrary, EntryPoint = "libusb_init")]
     internal static extern int Init(out IntPtr context);

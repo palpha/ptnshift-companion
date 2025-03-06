@@ -152,7 +152,8 @@
                     HorizontalAlignment="Center"
                     Foreground="DarkGray"
                     IsReadOnly="True"
-                    TextWrapping="Wrap">
+                    TextWrapping="Wrap"
+                    MaxLines="50">
                 </TextBox>
             </StackPanel>
         </StackPanel>

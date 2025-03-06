@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 
 namespace Core.Image;
 
-public class Streamer(ICaptureEventSource eventSource) : IStreamer, IDisposable
+public class MacStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposable
 {
     private byte[]? FrameBuffer { get; set; }
 
@@ -23,14 +23,14 @@ public class Streamer(ICaptureEventSource eventSource) : IStreamer, IDisposable
     private Lock FrameLock { get; } = new();
 
     private static LibScreenStream.CaptureCallback? CaptureCallback { get; set; }
-    
+
     public void Start(int displayId, int x, int y, int width, int height, int frameRate)
     {
         if (IsCapturing)
             throw new InvalidOperationException("Capture already in progress.");
 
         CaptureCallback = OnFrame;
-        
+
         // Prepare FrameBuffer based on expected size
         var bufferSize = width * height * 4;
         if (FrameBuffer is null || FrameBuffer.Length != bufferSize)
@@ -73,7 +73,7 @@ public class Streamer(ICaptureEventSource eventSource) : IStreamer, IDisposable
                 // Hand off the frame to your event source
                 EventSource.InvokeFrameCaptured(FrameBuffer.AsSpan(0, length));
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // Log or handle any unexpected Marshal.Copy issues
             }

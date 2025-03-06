@@ -29,7 +29,8 @@ public partial class App : Application
             var provider =
                 new ServiceCollection()
                     .AddLogging()
-                    .AddSingleton<IStreamer, Streamer>()
+                    //.AddSingleton<IStreamer, MacStreamer>()
+                    .AddSingleton<IStreamer, WinStreamer>()
                     .AddTransient<ICaptureEventSource, DefaultCaptureEventSource>()
                     .AddSingleton<IPush2Usb, Push2Usb>()
                     .AddTransient<IImageConverter, ImageConverter>()
@@ -53,6 +54,9 @@ public partial class App : Application
                 }
 
                 e.Cancel = true;
+
+                //provider.GetRequiredService<IStreamer>().Stop();
+
                 if (desktop.MainWindow.DataContext is MainWindowViewModel vm)
                 {
                     saved = true;
