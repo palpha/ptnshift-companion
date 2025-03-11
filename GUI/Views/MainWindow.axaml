@@ -59,7 +59,7 @@
                         <Setter Property="Width" Value="50" />
                     </Style>
                 </Grid.Styles>
-                
+
                 <TextBlock Grid.Row="0" Grid.Column="0"
                     Text="Display"
                     HorizontalAlignment="Left" />
@@ -97,7 +97,7 @@
                 RowDefinitions="Auto, Auto"
                 ColumnDefinitions="Auto, Auto, Auto"
                 Margin="12">
-                
+
                 <Grid.Styles>
                     <Style
                         Selector="TextBlock, TextBox, ComboBox">
@@ -117,13 +117,17 @@
                     Text="Capture" />
                 <ToggleSwitch Grid.Row="1" Grid.Column="0"
                     IsChecked="{Binding IsCapturing, Mode=OneWay}"
-                    Command="{Binding ExecuteToggleCapture}" />
+                    Command="{Binding ExecuteToggleCapture}"
+                    OnContent=""
+                    OffContent="" />
 
                 <TextBlock Grid.Row="0" Grid.Column="1"
                     HorizontalAlignment="Left"
                     Text="Preview" />
                 <ToggleSwitch Grid.Row="1" Grid.Column="1"
-                    IsChecked="{Binding IsPreviewEnabled}" />
+                    IsChecked="{Binding IsPreviewEnabled}"
+                    OnContent=""
+                    OffContent="" />
 
                 <TextBlock Grid.Row="0" Grid.Column="2"
                     HorizontalAlignment="Left"
@@ -131,8 +135,8 @@
                 <ToggleSwitch Grid.Row="1" Grid.Column="2"
                     IsChecked="{Binding IsConnected, Mode=OneWay}"
                     Command="{Binding ExecuteToggleConnection}"
-                    OnContent="Connected"
-                    OffContent="Disconnected" />
+                    OnContent=""
+                    OffContent="" />
             </Grid>
 
             <StackPanel IsVisible="{Binding IsDevMode}">
