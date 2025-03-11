@@ -27,7 +27,7 @@
                     HorizontalAlignment="Left"
                     VerticalAlignment="Top"
                     Stretch="UniformToFill" />
-                <TextBlock Text="{Binding FrameRate, Converter={StaticResource FrameRateConverter}}"
+                <TextBlock Text="{Binding MeasuredFrameRate, Converter={StaticResource FrameRateConverter}}"
                     FontSize="10"
                     Foreground="White"
                     HorizontalAlignment="Left"

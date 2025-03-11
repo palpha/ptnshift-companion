@@ -22,14 +22,18 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private bool isConnected;
     [ObservableProperty] private bool isPreviewEnabled = true;
     [ObservableProperty] private bool isDevMode;
-    [ObservableProperty] private double frameRate;
+    [ObservableProperty] private double measuredFrameRate;
     [ObservableProperty] private string lastFrameDumpFilename = "";
     [ObservableProperty] private string debugOutput = "";
     [ObservableProperty] private ObservableCollection<ScreenHelper.DisplayInfo>? displayInfos;
     [ObservableProperty] private ScreenHelper.DisplayInfo? selectedDisplayInfo;
-    [ObservableProperty] private string? captureX = "400";
-    [ObservableProperty] private string? captureY = "1000";
+    [ObservableProperty] private string? captureX = "533";
+    [ObservableProperty] private string? captureY = "794";
     [ObservableProperty] private string? captureFrameRate = "30";
+
+    [ObservableProperty] private int captureXParsed = 533;
+    [ObservableProperty] private int captureYParsed = 794;
+    [ObservableProperty] private int captureFrameRateParsed = 30;
 
     [ObservableProperty] private Bitmap? imageSource;
 
@@ -67,15 +71,59 @@ public partial class MainWindowViewModel : ViewModelBase
 
         PropertyChanged += (_, e) =>
         {
+            void MaybeChangeCaptureRegion()
+            {
+                if (IsCapturing)
+                {
+                    ExecuteToggleCapture(skipPermissionCheck: true);
+                    ExecuteToggleCapture(skipPermissionCheck: true);
+                }
+            }
+
             switch (e.PropertyName)
             {
                 case nameof(IsCapturePermitted) or nameof(SelectedDisplayInfo):
                     OnPropertyChanged(nameof(CanCapture));
+                    MaybeChangeCaptureRegion();
                     break;
 
                 case nameof(DisplayInfos):
                     SetSelectedDisplayInfo();
                     OnPropertyChanged(nameof(HasDisplayInfos));
+                    break;
+
+                case nameof(CaptureX):
+                {
+                    if (int.TryParse(captureX, out var x))
+                    {
+                        CaptureXParsed = x;
+                    }
+
+                    break;
+                }
+                case nameof(CaptureY):
+                {
+                    if (int.TryParse(captureY, out var x))
+                    {
+                        CaptureXParsed = x;
+                    }
+
+                    break;
+                }
+                case nameof(CaptureFrameRate):
+                {
+                    if (int.TryParse(captureFrameRate, out var x))
+                    {
+                        CaptureXParsed = x;
+                    }
+
+                    break;
+                }
+
+                case nameof(CaptureXParsed):
+                case nameof(CaptureYParsed):
+                case nameof(CaptureFrameRateParsed):
+                    MaybeChangeCaptureRegion();
                     break;
             }
         };
@@ -129,7 +177,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var elapsed = (now - LastFrameTime).TotalSeconds;
         if (elapsed >= 1)
         {
-            FrameRate = FrameCount / elapsed;
+            MeasuredFrameRate = FrameCount / elapsed;
             FrameCount = 0;
             LastFrameTime = now;
         }
@@ -171,9 +219,12 @@ public partial class MainWindowViewModel : ViewModelBase
         IsCapturePermitted = await Streamer.CheckPermissionAsync();
     }
 
-    public void ExecuteToggleCapture()
+    public void ExecuteToggleCapture(bool? skipPermissionCheck = null)
     {
-        _ = ExecuteCheckPermission();
+        if (skipPermissionCheck != true)
+        {
+            _ = ExecuteCheckPermission();
+        }
 
         if (IsCapturePermitted == false || SelectedDisplayInfo is null)
         {
