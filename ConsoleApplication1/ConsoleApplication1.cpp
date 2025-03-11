@@ -5,7 +5,7 @@
 // 1. Include your library header
 #include "..\\WinScreenStream\\WinScreenStreamLib.h"
 
-#pragma comment(lib, "Y:\\lsc-windows\\ARM64\\Debug\\WinScreenStream.lib") 
+#pragma comment(lib, "Y:\\lsc-windows\\WinScreenStream\\ARM64\\Debug\\WinScreenStream.lib")
 // Ensures we link against WinScreenStreamLib (import library)
 
 // Callback for frame capture
@@ -42,7 +42,7 @@ int main()
         << std::endl;
 
     // 4. Start capture
-    int hr = StartCapture(displayId, MyFrameCallback, nullptr);
+    int hr = StartCapture(displayId, 1, MyFrameCallback, nullptr);
     if (hr != 0) {
         std::cout << "StartCapture failed with code: " << hr << std::endl;
         return 1;
@@ -51,6 +51,11 @@ int main()
     std::cout << "Capture started successfully. We'll capture for ~5 seconds..." << std::endl;
     // Let the capture thread run for 5 seconds
     std::this_thread::sleep_for(std::chrono::seconds(5));
+
+    SetFrameRate(20); // Change frame rate to 2 FPS
+    std::cout << "FPS changed successfully. We'll capture for ~5 seconds..." << std::endl;
+    // Let the capture thread run for 5 seconds
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 
     // 5. Stop capture
     std::cout << "Stopping capture..." << std::endl;

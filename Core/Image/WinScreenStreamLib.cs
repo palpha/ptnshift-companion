@@ -10,7 +10,10 @@ public static class WinScreenStreamLib
     internal static extern int GetActiveDisplays([Out] DisplayInfo[] infos, int maxCount);
 
     [DllImport(LibraryName, CharSet = CharSet.Ansi)]
-    internal static extern int StartCapture(int displayId, CaptureFrameCallback cb, IntPtr userContext);
+    internal static extern int StartCapture(int displayId, int frameRate, CaptureFrameCallback cb, IntPtr userContext);
+
+    [DllImport(LibraryName, CharSet = CharSet.Ansi)]
+    internal static extern void SetFrameRate(int frameRate);
 
     [DllImport(LibraryName, CharSet = CharSet.Ansi)]
     internal static extern void StopCapture();

@@ -24,7 +24,8 @@ extern "C" {
         int height, void* userContext);
 
     WINSCREENSTREAMLIB_API int GetActiveDisplays(DisplayInfo* infos, int maxCount);
-    WINSCREENSTREAMLIB_API int StartCapture(int displayId, CaptureFrameCallback callback, void* userContext);
+    WINSCREENSTREAMLIB_API int StartCapture(int displayId, int frameRate, CaptureFrameCallback callback, void* userContext);
+    WINSCREENSTREAMLIB_API void SetFrameRate(int frameRate);
     WINSCREENSTREAMLIB_API void StopCapture();
     WINSCREENSTREAMLIB_API void Cleanup();
 

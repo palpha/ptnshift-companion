@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
@@ -42,6 +43,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private int FrameCount { get; set; }
     private DateTime LastFrameTime { get; set; }
     private byte[]? LastFrameData { get; set; }
+    private CancellationTokenSource RegionChangeCancellationTokenSource { get; set; } = new();
 
     private ILogger<MainWindowViewModel> Logger { get; }
     private IStreamer Streamer { get; }
@@ -74,11 +76,21 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             void MaybeChangeCaptureRegion()
             {
-                if (IsCapturing)
+                if (IsCapturing == false)
                 {
-                    ExecuteToggleCapture(skipPermissionCheck: true);
-                    ExecuteToggleCapture(skipPermissionCheck: true);
+                    return;
                 }
+
+                ExecuteToggleCapture(skipPermissionCheck: true);
+#if MACOS
+                ExecuteToggleCapture(skipPermissionCheck: true);
+#elif WINDOWS
+                RegionChangeCancellationTokenSource.Cancel();
+                RegionChangeCancellationTokenSource = new();
+                DelayOperation(
+                    () => ExecuteToggleCapture(skipPermissionCheck: true),
+                    cancellationToken: RegionChangeCancellationTokenSource.Token);
+#endif
             }
 
             switch (e.PropertyName)
@@ -106,7 +118,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     if (int.TryParse(captureY, out var x))
                     {
-                        CaptureXParsed = x;
+                        CaptureYParsed = x;
                     }
 
                     break;
@@ -115,7 +127,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     if (int.TryParse(captureFrameRate, out var x))
                     {
-                        CaptureXParsed = x;
+                        CaptureFrameRateParsed = x;
                     }
 
                     break;
@@ -123,8 +135,14 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 case nameof(CaptureXParsed):
                 case nameof(CaptureYParsed):
-                case nameof(CaptureFrameRateParsed):
                     MaybeChangeCaptureRegion();
+                    break;
+                case nameof(CaptureFrameRateParsed):
+#if MACOS
+                    MaybeChangeCaptureRegion();
+#elif WINDOWS
+                    (Streamer as IFrameRateUpdater)?.SetFrameRate(CaptureFrameRateParsed);
+#endif
                     break;
             }
         };
@@ -163,9 +181,9 @@ public partial class MainWindowViewModel : ViewModelBase
     public async Task SaveSettings() =>
         await SettingsManager.SaveAsync(new(
             SelectedDisplayInfo?.Id,
-            int.TryParse(CaptureX, out var x) ? x : 0,
-            int.TryParse(CaptureY, out var y) ? y : 0,
-            int.TryParse(CaptureFrameRate, out var frameRate) ? frameRate : 0,
+            CaptureXParsed,
+            CaptureYParsed,
+            CaptureFrameRateParsed,
             IsPreviewEnabled));
 
     //TODO: refactor MacStreamer
@@ -238,13 +256,13 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         else
         {
-            var capX = int.Parse(CaptureX ?? "400");
-            var capY = int.Parse(CaptureY ?? "1000");
-            var capFrameRate = int.Parse(CaptureFrameRate ?? "30");
-
             try
             {
-                Streamer.Start(SelectedDisplayInfo.Id, capX, capY, 960, 160, capFrameRate);
+                Streamer.Start(
+                    SelectedDisplayInfo.Id,
+                    CaptureXParsed, CaptureYParsed,
+                    960, 160,
+                    CaptureFrameRateParsed);
             }
             catch (Exception ex)
             {
@@ -252,8 +270,24 @@ public partial class MainWindowViewModel : ViewModelBase
                 DebugOutput += $"Unable to start capture: {ex.Message}\n{ex.StackTrace}\n";
             }
         }
+#if MACOS
+        IsCapturing = Streamer.IsCapturing
+#elif WINDOWS
+        Task.Run(async () =>
+        {
+            await Task.Delay(100);
+            Dispatcher.UIThread.Invoke(() => IsCapturing = Streamer.IsCapturing);
+        });
+#endif
+    }
 
-        IsCapturing = Streamer.IsCapturing;
+    private void DelayOperation(Action action, CancellationToken cancellationToken = default)
+    {
+        Task.Run(async () =>
+        {
+            await Task.Delay(500, cancellationToken);
+            action();
+        }, cancellationToken);
     }
 
     public async Task ExecuteToggleConnection()

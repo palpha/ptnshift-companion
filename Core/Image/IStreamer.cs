@@ -18,3 +18,8 @@ public interface IStreamer
     void Start(int displayId, int x, int y, int width, int height, int frameRate);
     void Stop();
 }
+
+public interface IFrameRateUpdater
+{
+    void SetFrameRate(int frameRate);
+}

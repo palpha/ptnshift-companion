@@ -4,7 +4,7 @@ namespace Core.Image;
 
 using System;
 
-public class WinStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposable
+public class WinStreamer(ICaptureEventSource eventSource) : IStreamer, IFrameRateUpdater, IDisposable
 {
     private static WinScreenStreamLib.CaptureFrameCallback? CaptureCallback { get; set; }
 
@@ -37,13 +37,18 @@ public class WinStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposab
 
         CaptureCallback = OnFrame;
 
-        var result = WinScreenStreamLib.StartCapture(displayId, CaptureCallback, IntPtr.Zero);
+        var result = WinScreenStreamLib.StartCapture(displayId, frameRate, CaptureCallback, IntPtr.Zero);
         if (result != 0)
         {
             throw new InvalidOperationException($"Failed to start capture: {result}");
         }
 
         IsCapturing = true;
+    }
+
+    public void SetFrameRate(int frameRate)
+    {
+        WinScreenStreamLib.SetFrameRate(frameRate);
     }
 
     public void Stop()

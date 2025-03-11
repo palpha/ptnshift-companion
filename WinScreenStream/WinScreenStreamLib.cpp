@@ -8,6 +8,7 @@
 #include <atomic>
 #include <vector>
 #include <cstdio>
+#include <chrono>
 
 using Microsoft::WRL::ComPtr;
 
@@ -32,6 +33,7 @@ static ComPtr<ID3D11DeviceContext> gD3DContext;
 static std::thread gCaptureThread;
 static std::atomic<bool> gCaptureRun{ false };
 static int gCurrentDisplayId = -1;
+std::atomic<int> gFrameRate = 30;
 static CaptureFrameCallback gCallback = nullptr;
 static void* gCallbackUserContext = nullptr;
 
@@ -124,7 +126,12 @@ static void CaptureThread(int displayId)
     ComPtr<IDXGIResource> desktopResource;
     ComPtr<ID3D11Texture2D> acquiredTex;
 
+    auto lastFrameTime = std::chrono::steady_clock::now();
+
     while (gCaptureRun) {
+        int frameDurationMs = 1000 / gFrameRate;
+        printf("Capturing frame, expected interval: %d ms\n", frameDurationMs);
+
         desktopResource.Reset();
         acquiredTex.Reset();
 
@@ -175,6 +182,14 @@ static void CaptureThread(int displayId)
                     gD3DContext->Unmap(stagingTex.Get(), 0);
                 }
             }
+
+            // Frame rate limiting logic
+            auto now = std::chrono::steady_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastFrameTime).count();
+            if (elapsed < frameDurationMs) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(frameDurationMs - elapsed));
+            }
+            lastFrameTime = std::chrono::steady_clock::now();
         }
 
         gDuplication->ReleaseFrame();
@@ -186,7 +201,7 @@ static void CaptureThread(int displayId)
 // ------------------------------------------------------
 // StartCapture
 // ------------------------------------------------------
-int StartCapture(int displayId, CaptureFrameCallback callback, void* userContext)
+int StartCapture(int displayId, int frameRate, CaptureFrameCallback callback, void* userContext)
 {
     if (displayId < 0 || displayId >= (int)gDisplays.size()) {
         printf("Invalid displayId in StartCapture: %d\n", displayId);
@@ -199,6 +214,7 @@ int StartCapture(int displayId, CaptureFrameCallback callback, void* userContext
     }
 
     gCurrentDisplayId = displayId;
+    gFrameRate = frameRate;
     gCallback = callback;
     gCallbackUserContext = userContext;
 
@@ -238,6 +254,14 @@ int StartCapture(int displayId, CaptureFrameCallback callback, void* userContext
     gCaptureThread = std::thread(CaptureThread, displayId);
 
     return 0; // success
+}
+
+void SetFrameRate(int frameRate)
+{
+    if (frameRate > 0) {
+        gFrameRate = frameRate;
+        printf("Frame rate updated: %d FPS\n", gFrameRate.load());
+    }
 }
 
 // ------------------------------------------------------
