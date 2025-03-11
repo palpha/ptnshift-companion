@@ -80,7 +80,7 @@
     </ItemGroup>
 
     <!-- after publish, copy dlls from build output to publish output directory -->
-    <Target Name="CopyDlls" AfterTargets="Publish">
+    <Target Name="CopyDlls" AfterTargets="Publish" Condition=" '$(IsWindows)' == 'true' ">
         <Copy SourceFiles="$(OutputPath)WinScreenStream.dll" DestinationFolder="$(PublishDir)" />
         <Copy SourceFiles="$(OutputPath)libusb.dll" DestinationFolder="$(PublishDir)" />
     </Target>

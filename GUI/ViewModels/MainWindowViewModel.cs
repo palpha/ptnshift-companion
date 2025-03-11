@@ -271,7 +271,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
 #if MACOS
-        IsCapturing = Streamer.IsCapturing
+        IsCapturing = Streamer.IsCapturing;
 #elif WINDOWS
         Task.Run(async () =>
         {
