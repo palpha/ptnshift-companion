@@ -38,12 +38,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [ObservableProperty] private Bitmap? imageSource;
 
+    private CancellationTokenSource regionChangeCancellationTokenSource = new();
+
     private Random Rnd { get; } = new();
 
     private int FrameCount { get; set; }
     private DateTime LastFrameTime { get; set; }
     private byte[]? LastFrameData { get; set; }
-    private CancellationTokenSource RegionChangeCancellationTokenSource { get; set; } = new();
 
     private ILogger<MainWindowViewModel> Logger { get; }
     private IStreamer Streamer { get; }
@@ -85,12 +86,19 @@ public partial class MainWindowViewModel : ViewModelBase
 #if MACOS
                 ExecuteToggleCapture(skipPermissionCheck: true);
 #elif WINDOWS
-                RegionChangeCancellationTokenSource.Cancel();
-                RegionChangeCancellationTokenSource = new();
                 DelayOperation(
                     () => ExecuteToggleCapture(skipPermissionCheck: true),
-                    cancellationToken: RegionChangeCancellationTokenSource.Token);
+                    delayMs: 200,
+                    ref regionChangeCancellationTokenSource);
 #endif
+            }
+
+            void DelayedMaybeChangeCaptureRegion()
+            {
+                DelayOperation(
+                    MaybeChangeCaptureRegion,
+                    delayMs: 400,
+                    ref regionChangeCancellationTokenSource);
             }
 
             switch (e.PropertyName)
@@ -135,11 +143,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 case nameof(CaptureXParsed):
                 case nameof(CaptureYParsed):
-                    MaybeChangeCaptureRegion();
+                    DelayedMaybeChangeCaptureRegion();
                     break;
                 case nameof(CaptureFrameRateParsed):
 #if MACOS
-                    MaybeChangeCaptureRegion();
+                    DelayedMaybeChangeCaptureRegion();
 #elif WINDOWS
                     (Streamer as IFrameRateUpdater)?.SetFrameRate(CaptureFrameRateParsed);
 #endif
@@ -281,13 +289,31 @@ public partial class MainWindowViewModel : ViewModelBase
 #endif
     }
 
-    private void DelayOperation(Action action, CancellationToken cancellationToken = default)
+    private void DelayOperation(
+        Action action,
+        int delayMs,
+        ref CancellationTokenSource cts)
     {
+        cts.Cancel();
+        cts = new CancellationTokenSource();
+        var token = cts.Token;
         Task.Run(async () =>
         {
-            await Task.Delay(500, cancellationToken);
-            action();
-        }, cancellationToken);
+            await Task.Delay(delayMs, token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Exception in delayed action");
+            }
+        }, token);
     }
 
     public async Task ExecuteToggleConnection()
