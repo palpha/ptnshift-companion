@@ -11,7 +11,7 @@
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <Configurations>Release MacOS;Debug Windows;Debug MacOS;Release Windows</Configurations>
-        <Platforms>AnyCPU;ARM64</Platforms>
+        <Platforms>ARM64;x64</Platforms>
     </PropertyGroup>
 
     <ItemGroup>

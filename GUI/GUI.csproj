@@ -13,7 +13,8 @@
         <PublishReadyToRun>true</PublishReadyToRun>
         <EnableExperimentalJsonSerializer>true</EnableExperimentalJsonSerializer>
         <Configurations>Release MacOS;Debug Windows;Debug MacOS;Release Windows</Configurations>
-        <Platforms>AnyCPU;x64;ARM64</Platforms>
+        <Platforms>ARM64;x64</Platforms>
+        <LangVersion>default</LangVersion>
     </PropertyGroup>
     <ItemGroup>
         <AvaloniaResource Include="Assets\**" />
@@ -32,8 +33,8 @@
         <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
         <PackageReference Include="Avalonia.Diagnostics" Version="11.2.5">
-            <IncludeAssets Condition="'$(Configuration)' != 'Debug'">None</IncludeAssets>
-            <PrivateAssets Condition="'$(Configuration)' != 'Debug'">All</PrivateAssets>
+            <IncludeAssets Condition="'$(Configuration)' != 'Debug Windows' or '$(Configuration)' != 'Debug MacOS'">None</IncludeAssets>
+            <PrivateAssets Condition="'$(Configuration)' != 'Debug Windows' or '$(Configuration)' != 'Debug MacOS'">All</PrivateAssets>
         </PackageReference>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-preview.1.25080.5" />
@@ -68,7 +69,7 @@
         </None>
     </ItemGroup>
 
-    <ItemGroup Condition=" '$(IsWindows)' == 'true' and '$(Platform)' == 'arm64' ">
+    <ItemGroup Condition=" '$(IsWindows)' == 'true' and '$(Platform)' == 'ARM64' ">
         <None Include="../WinScreenStream/ARM64/Release/WinScreenStream.dll">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <TargetPath>WinScreenStream.dll</TargetPath>
@@ -85,10 +86,16 @@
         <Copy SourceFiles="$(OutputPath)libusb.dll" DestinationFolder="$(PublishDir)" />
     </Target>
 
-    <PropertyGroup Condition="'$(Platform)' == 'x64'">
+    <PropertyGroup Condition="'$(Platform)' == 'x64' AND '$(IsWindows)' == 'true'">
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     </PropertyGroup>
-    <PropertyGroup Condition="'$(Platform)' == 'arm64'">
+    <PropertyGroup Condition="'$(Platform)' == 'ARM64' AND '$(IsWindows)' == 'true'">
         <RuntimeIdentifier>win-arm64</RuntimeIdentifier>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Platform)' == 'x64' AND '$(IsMacOS)' == 'true'">
+        <RuntimeIdentifier>osx-x64</RuntimeIdentifier>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Platform)' == 'ARM64' AND '$(IsMacOS)' == 'true'">
+        <RuntimeIdentifier>osx-arm64</RuntimeIdentifier>
     </PropertyGroup>
 </Project>
