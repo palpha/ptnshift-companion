@@ -11,6 +11,7 @@
         <SelfContained>true</SelfContained>
         <PublishTrimmed>true</PublishTrimmed>
         <PublishReadyToRun>true</PublishReadyToRun>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
         <EnableExperimentalJsonSerializer>true</EnableExperimentalJsonSerializer>
         <Configurations>Release MacOS;Debug Windows;Debug MacOS;Release Windows</Configurations>
         <Platforms>ARM64;x64</Platforms>
@@ -80,11 +81,10 @@
         </None>
     </ItemGroup>
 
-    <!-- after publish, copy dlls from build output to publish output directory -->
-    <Target Name="CopyDlls" AfterTargets="Publish" Condition=" '$(IsWindows)' == 'true' ">
+    <!-- <Target Name="CopyDlls" AfterTargets="Publish" Condition=" '$(IsWindows)' == 'true' ">
         <Copy SourceFiles="$(OutputPath)WinScreenStream.dll" DestinationFolder="$(PublishDir)" />
         <Copy SourceFiles="$(OutputPath)libusb.dll" DestinationFolder="$(PublishDir)" />
-    </Target>
+    </Target> -->
 
     <PropertyGroup Condition="'$(Platform)' == 'x64' AND '$(IsWindows)' == 'true'">
         <RuntimeIdentifier>win-x64</RuntimeIdentifier>
