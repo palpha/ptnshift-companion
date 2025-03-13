@@ -8,8 +8,8 @@ arm64_output="publish/osx-arm64"
 dotnet publish GUI/GUI.csproj -f net9.0 -r osx-x64 -c "Release MacOS" -o $x64_output -p:UseAppHost=true
 dotnet publish GUI/GUI.csproj -f net9.0 -r osx-arm64 -c "Release MacOS" -o $arm64_output -p:UseAppHost=true
 
-x64_app="$x64_output/LiveshiftCompanion"
-arm64_app="$arm64_output/LiveshiftCompanion"
+x64_app="$x64_output/PtnshiftCompanion"
+arm64_app="$arm64_output/PtnshiftCompanion"
 
 if [[ ! -f "$x64_app" || ! -f "$arm64_app" ]]; then
   echo "Error: One or both builds failed!"
@@ -17,7 +17,7 @@ if [[ ! -f "$x64_app" || ! -f "$arm64_app" ]]; then
 fi
 
 # Create app bundle
-app_bundle="publish/LiveshiftCompanion.app"
+app_bundle="publish/PtnshiftCompanion.app"
 rm -rf "$app_bundle"
 mkdir -p "$app_bundle/Contents/MacOS"
 mkdir -p "$app_bundle/Contents/Resources"
@@ -26,7 +26,7 @@ mkdir -p "$app_bundle/Contents/Resources"
 cp -a "$x64_output/." "$app_bundle/Contents/MacOS"
 
 # Create universal binary
-universal_app="$app_bundle/Contents/MacOS/LiveshiftCompanion"
+universal_app="$app_bundle/Contents/MacOS/PtnshiftCompanion"
 lipo -create -output "$universal_app" "$x64_app" "$arm64_app"
 
 # Inject Info.plist

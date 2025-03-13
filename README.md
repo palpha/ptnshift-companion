@@ -1,6 +1,6 @@
-# Liveshift Companion
+# Ptnshift Companion
 
-Companion app for Tim Exile's amazing Liveshift, the Push 2-compatible variant of [Scapeshift](https://www.patreon.com/c/timexile/shop).
+Companion app for Tim Exile's amazing Ptnshift, the Push 2-compatible variant of [Scapeshift](https://www.patreon.com/c/timexile/shop).
 
 ## Licensing
 
@@ -8,7 +8,7 @@ This project is licensed under the GNU General Public License v3.0 (GPLv3), ensu
 
 However, if you are interested in using this project under different terms—for example, to distribute a modified version without being bound by GPLv3—you may contact the project maintainer to discuss alternative licensing options. Additional permissions may be granted on a case-by-case basis.
 
-For inquiries, please reach out via https://github.com/palpha/liveshift-companion/issues.
+For inquiries, please reach out via https://github.com/palpha/ptnshift-companion/issues.
 
 ## libusb relinking
 

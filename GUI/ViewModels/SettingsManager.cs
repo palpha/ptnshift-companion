@@ -16,7 +16,7 @@ public static class SettingsManager
     public static readonly string SettingsPath =
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "LiveshiftCompanion",
+            "PtnshiftCompanion",
             "settings.json");
 
     private static JsonSerializerOptions SerializerOptions { get; } = new()

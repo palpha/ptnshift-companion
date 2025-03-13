@@ -7,7 +7,7 @@
     x:Class="GUI.Views.MainWindow"
     x:DataType="vm:MainWindowViewModel"
     Icon="/Assets/avalonia-logo.ico"
-    Title="Liveshift Companion">
+    Title="Ptnshift Companion">
 
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE,

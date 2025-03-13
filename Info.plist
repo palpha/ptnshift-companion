@@ -5,21 +5,21 @@
     <key>CFBundleIconFile</key>
     <string>appicon.icns</string>
     <key>CFBundleIdentifier</key>
-    <string>org.bergius.liveshiftcompanion</string>
+    <string>org.bergius.ptnshiftcompanion</string>
     <key>CFBundleName</key>
-    <string>LiveshiftCompanion</string>
+    <string>Ptnshift Companion</string>
     <key>CFBundleVersion</key>
-    <string>1.0.0</string>
+    <string>0.0.5</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.12</string>
     <key>CFBundleExecutable</key>
-    <string>LiveshiftCompanion</string>
+    <string>PtnshiftCompanion</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0</string>
+    <string>0.0.5</string>
     <key>NSHighResolutionCapable</key>
     <true/>
 </dict>
