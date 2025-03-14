@@ -5,10 +5,12 @@ using System.Linq;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Core.Image;
+using Core.Settings;
 using Core.Usb;
 using GUI.ViewModels;
 using GUI.Views;
 using Microsoft.Extensions.DependencyInjection;
+using Core.Capturing;
 
 namespace GUI;
 
@@ -31,13 +33,17 @@ public partial class App : Application
                     .AddLogging()
 #if MACOS
                     .AddSingleton<IStreamer, MacStreamer>()
+                    .AddTransient<ICaptureService, MacCaptureService>()
 #elif WINDOWS
-                    .AddSingleton<IStreamer, WinStreamer>()
+                    .AddSingleton<IStreamer, WindowsStreamer>()
+                    .AddTransient<ICaptureService, WindowsCaptureService>()
 #endif
                     .AddTransient<ICaptureEventSource, DefaultCaptureEventSource>()
                     .AddSingleton<IPush2Usb, Push2Usb>()
                     .AddTransient<IImageConverter, ImageConverter>()
                     .AddTransient<ILibUsbWrapper, DefaultLibUsbWrapper>()
+                    .AddTransient<ISettingsManager, SettingsManager>()
+                    .AddTransient<IDisplayService, DisplayService>()
                     .AddTransient<MainWindowViewModel>()
                     .BuildServiceProvider();
             var model = provider.GetRequiredService<MainWindowViewModel>();
@@ -58,12 +64,10 @@ public partial class App : Application
 
                 e.Cancel = true;
 
-                //provider.GetRequiredService<IStreamer>().Stop();
-
                 if (desktop.MainWindow.DataContext is MainWindowViewModel vm)
                 {
                     saved = true;
-                    await vm.SaveSettings();
+                    await vm.SaveSettingsAsync();
                 }
 
                 desktop.MainWindow.Close();

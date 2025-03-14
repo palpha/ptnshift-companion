@@ -1,4 +1,4 @@
-using Core.Image;
+using Core.Capturing;
 
 namespace Tests.App;
 

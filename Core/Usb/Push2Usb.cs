@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using Core.Capturing;
 using Core.Image;
 using Microsoft.Extensions.Logging;
 
@@ -93,8 +94,7 @@ public class Push2Usb : IPush2Usb
             return false;
         }
 
-        Logger.LogInformation("Push 2 connected!");
-        IsConnected = true;
+        Logger.LogInformation("Push 2 connected.");
 
         // Claim the interface for display communication
         var claimResult = LibUsbWrapper.ClaimInterface(PushDevice, Identity.DisplayInterface);
@@ -109,7 +109,7 @@ public class Push2Usb : IPush2Usb
 
         Streamer.EventSource.FrameCaptured += OnFrameReceived;
 
-        return true;
+        return IsConnected = true;
     }
 
     private void OnFrameReceived(ReadOnlySpan<byte> bgraBytes)

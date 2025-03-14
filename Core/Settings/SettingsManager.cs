@@ -1,17 +1,20 @@
-using System;
-using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System.Threading.Tasks;
 
-namespace GUI.ViewModels;
+namespace Core.Settings;
 
 [JsonSerializable(typeof(AppSettings))]
 internal partial class AppSettingsJsonContext : JsonSerializerContext
 {
 }
 
-public static class SettingsManager
+public interface ISettingsManager
+{
+    Task<AppSettings> LoadAsync();
+    Task SaveAsync(AppSettings settings);
+}
+
+public class SettingsManager : ISettingsManager
 {
     public static readonly string SettingsPath =
         Path.Combine(
@@ -25,7 +28,7 @@ public static class SettingsManager
         TypeInfoResolver = AppSettingsJsonContext.Default
     };
 
-    public static async Task<AppSettings> LoadAsync()
+    public async Task<AppSettings> LoadAsync()
     {
         if (File.Exists(SettingsPath) == false)
         {
@@ -36,10 +39,10 @@ public static class SettingsManager
         return JsonSerializer.Deserialize<AppSettings>(json, SerializerOptions) ?? new();
     }
 
-    public static async Task SaveAsync(AppSettings settings)
+    public async Task SaveAsync(AppSettings settings)
     {
         var directory = Path.GetDirectoryName(SettingsPath)
-            ?? throw new InvalidOperationException("Could not locate settings directory.");
+                        ?? throw new InvalidOperationException("Could not locate settings directory.");
 
         if (Directory.Exists(directory) == false)
         {

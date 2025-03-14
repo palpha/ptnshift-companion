@@ -64,7 +64,7 @@
                     Text="Display"
                     HorizontalAlignment="Left" />
                 <ComboBox Grid.Row="1" Grid.Column="0"
-                    ItemsSource="{Binding DisplayInfos}"
+                    ItemsSource="{Binding AvailableDisplays}"
                     SelectedItem="{Binding SelectedDisplayInfo}"
                     VerticalContentAlignment="Bottom"
                     HorizontalContentAlignment="Left"
@@ -134,7 +134,7 @@
                     Text="Push" />
                 <ToggleSwitch Grid.Row="1" Grid.Column="2"
                     IsChecked="{Binding IsConnected, Mode=OneWay}"
-                    Command="{Binding ExecuteToggleConnection}"
+                    Command="{Binding ExecuteToggleConnectionAsync}"
                     OnContent=""
                     OffContent="" />
             </Grid>

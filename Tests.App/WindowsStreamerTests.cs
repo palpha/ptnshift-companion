@@ -1,17 +1,16 @@
-﻿using Core.Image;
+﻿using Core.Capturing;
+using Core.Image;
 using Moq;
 
 namespace Tests.App;
 
-public class WinStreamerTests
+public class WindowsStreamerTests
 {
     private EventSourceMock EventSourceMock { get; } = new();
 
     [Fact]
     public void Foo()
     {
-        var sut = new WinStreamer(EventSourceMock);
-
-        
+        var sut = new WindowsStreamer(EventSourceMock);
     }
 }

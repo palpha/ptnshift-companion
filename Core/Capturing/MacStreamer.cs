@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 
 [assembly: InternalsVisibleTo("Tests.App")]
 
-namespace Core.Image;
+namespace Core.Capturing;
 
 public class MacStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposable
 {
@@ -47,10 +47,10 @@ public class MacStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposab
         IsCapturing = true;
     }
 
-    private void OnFrame(IntPtr data, int length)
+    private void OnFrame(nint data, int length)
     {
         // If we’ve already stopped or got invalid data, bail out
-        if (!IsCapturing || length <= 0 || data == IntPtr.Zero || FrameBuffer is null)
+        if (!IsCapturing || length <= 0 || data == nint.Zero || FrameBuffer is null)
             return;
 
         // Clamp/resize if native side gave a bigger-than-expected length

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -9,7 +8,9 @@ using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Core.Capturing;
 using Core.Image;
+using Core.Settings;
 using Core.Usb;
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
@@ -26,19 +27,19 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private double measuredFrameRate;
     [ObservableProperty] private string lastFrameDumpFilename = "";
     [ObservableProperty] private string debugOutput = "";
-    [ObservableProperty] private ObservableCollection<ScreenHelper.DisplayInfo>? displayInfos;
-    [ObservableProperty] private ScreenHelper.DisplayInfo? selectedDisplayInfo;
+    [ObservableProperty] private ObservableCollection<DisplayInfo>? availableDisplays;
+    [ObservableProperty] private DisplayInfo? selectedDisplayInfo;
     [ObservableProperty] private string? captureX = "533";
     [ObservableProperty] private string? captureY = "794";
     [ObservableProperty] private string? captureFrameRate = "30";
-
     [ObservableProperty] private int captureXParsed = 533;
     [ObservableProperty] private int captureYParsed = 794;
     [ObservableProperty] private int captureFrameRateParsed = 30;
-
+    [ObservableProperty] private CaptureConfiguration captureConfiguration = new(0, 533, 794, 960, 161, 25);
     [ObservableProperty] private Bitmap? imageSource;
 
-    private CancellationTokenSource regionChangeCancellationTokenSource = new();
+    private CancellationTokenSource propertyUpdateCancellationTokenSource = new();
+    private CancellationTokenSource cfgUpdateCancellationTokenSource = new();
 
     private Random Rnd { get; } = new();
 
@@ -47,134 +48,139 @@ public partial class MainWindowViewModel : ViewModelBase
     private byte[]? LastFrameData { get; set; }
 
     private ILogger<MainWindowViewModel> Logger { get; }
-    private IStreamer Streamer { get; }
+    private IDisplayService DisplayService { get; }
+    private ICaptureService CaptureService { get; }
+    private ISettingsManager SettingsManager { get; }
     private IImageConverter ImageConverter { get; }
     private IPush2Usb Push2Usb { get; }
 
     private AppSettings? AppSettings { get; set; }
 
-    public bool CanCapture => IsCapturePermitted && SelectedDisplayInfo is not null;
-
-    [MemberNotNullWhen(true, nameof(DisplayInfos))]
-    public bool HasDisplayInfos => DisplayInfos is { Count: > 0 };
-
     public MainWindowViewModel(
-        IStreamer streamer,
+        IDisplayService displayService,
+        ICaptureService captureService,
+        ISettingsManager settingsManager,
         IImageConverter imageConverter,
         IPush2Usb push2Usb,
         ILogger<MainWindowViewModel> logger)
     {
-        Streamer = streamer;
+        DisplayService = displayService;
+        CaptureService = captureService;
+        SettingsManager = settingsManager;
         ImageConverter = imageConverter;
         Push2Usb = push2Usb;
         Logger = logger;
 
-        Streamer.EventSource.FrameCaptured += OnFrameReceived;
+        CaptureService.FrameCaptured += OnFrameReceived;
 
         LastFrameTime = DateTime.UtcNow;
 
         PropertyChanged += (_, e) =>
         {
-            void MaybeChangeCaptureRegion()
+            void UpdateCaptureConfiguration(CaptureConfiguration configuration)
             {
-                if (IsCapturing == false)
-                {
-                    return;
-                }
+                CaptureConfiguration = configuration.GetNormalized(DisplayService.AvailableDisplays);
 
-                ExecuteToggleCapture(skipPermissionCheck: true);
-#if MACOS
-                ExecuteToggleCapture(skipPermissionCheck: true);
-#elif WINDOWS
                 DelayOperation(
-                    () => ExecuteToggleCapture(skipPermissionCheck: true),
-                    delayMs: 200,
-                    ref regionChangeCancellationTokenSource);
-#endif
+                    () => Dispatcher.UIThread.Invoke(() =>
+                    {
+                        CaptureX = CaptureConfiguration.CaptureX.ToString();
+                        CaptureY = CaptureConfiguration.CaptureY.ToString();
+                        CaptureFrameRate = CaptureConfiguration.FrameRate.ToString();
+                    }),
+                    100, ref propertyUpdateCancellationTokenSource);
+
+                DelayOperation(
+                    () => CaptureService.SetConfiguration(CaptureConfiguration),
+                    500, ref cfgUpdateCancellationTokenSource);
             }
 
-            void DelayedMaybeChangeCaptureRegion()
-            {
-                DelayOperation(
-                    MaybeChangeCaptureRegion,
-                    delayMs: 400,
-                    ref regionChangeCancellationTokenSource);
-            }
 
             switch (e.PropertyName)
             {
-                case nameof(IsCapturePermitted) or nameof(SelectedDisplayInfo):
-                    OnPropertyChanged(nameof(CanCapture));
-                    MaybeChangeCaptureRegion();
-                    break;
+                case nameof(SelectedDisplayInfo):
+                {
+                    if (SelectedDisplayInfo == null)
+                    {
+                        return;
+                    }
 
-                case nameof(DisplayInfos):
-                    SetSelectedDisplayInfo();
-                    OnPropertyChanged(nameof(HasDisplayInfos));
-                    break;
+                    UpdateCaptureConfiguration(CaptureConfiguration with
+                    {
+                        DisplayId = SelectedDisplayInfo!.Id
+                    });
 
+                    break;
+                }
                 case nameof(CaptureX):
                 {
-                    if (int.TryParse(captureX, out var x))
+                    if (CaptureX == CaptureConfiguration.CaptureX.ToString())
                     {
-                        CaptureXParsed = x;
+                        return;
+                    }
+
+                    if (int.TryParse(CaptureX, out var x))
+                    {
+                        UpdateCaptureConfiguration(CaptureConfiguration with
+                        {
+                            CaptureX = x
+                        });
                     }
 
                     break;
                 }
                 case nameof(CaptureY):
                 {
-                    if (int.TryParse(captureY, out var x))
+                    if (CaptureY == CaptureConfiguration.CaptureY.ToString())
                     {
-                        CaptureYParsed = x;
+                        return;
+                    }
+
+                    if (int.TryParse(CaptureY, out var x))
+                    {
+                        UpdateCaptureConfiguration(CaptureConfiguration with
+                        {
+                            CaptureY = x
+                        });
                     }
 
                     break;
                 }
                 case nameof(CaptureFrameRate):
                 {
-                    if (int.TryParse(captureFrameRate, out var x))
+                    if (CaptureFrameRate == CaptureConfiguration.FrameRate.ToString())
                     {
-                        CaptureFrameRateParsed = x;
+                        return;
+                    }
+
+                    if (int.TryParse(CaptureFrameRate, out var x))
+                    {
+                        UpdateCaptureConfiguration(CaptureConfiguration with
+                        {
+                            FrameRate = x
+                        });
                     }
 
                     break;
                 }
-
-                case nameof(CaptureXParsed):
-                case nameof(CaptureYParsed):
-                    DelayedMaybeChangeCaptureRegion();
-                    break;
-                case nameof(CaptureFrameRateParsed):
-#if MACOS
-                    DelayedMaybeChangeCaptureRegion();
-#elif WINDOWS
-                    (Streamer as IFrameRateUpdater)?.SetFrameRate(CaptureFrameRateParsed);
-#endif
-                    break;
             }
         };
 
-        ExecuteIdentifyDisplays();
+        AvailableDisplays = DisplayService.AvailableDisplays;
         _ = ExecuteCheckPermission(delay: true);
-        Task.Run(ExecuteConnect);
-
-        _ = LoadSettings();
+        _ = ExecuteConnectAsync();
+        _ = LoadSettingsAsync();
     }
 
     private void SetSelectedDisplayInfo(bool? useFallback = null)
     {
-        if (HasDisplayInfos && SelectedDisplayInfo is null)
-        {
-            SelectedDisplayInfo =
-                DisplayInfos.FirstOrDefault(x => x.Id == AppSettings?.SelectedDisplayId)
-                ?? (useFallback == true ? DisplayInfos.First() : null);
-        }
+        SelectedDisplayInfo ??=
+            DisplayService.GetDefaultDisplay(AppSettings)
+            ?? (useFallback == true ? DisplayService.AvailableDisplays.First() : null);
     }
 
-    private async Task LoadSettings()
+    private async Task LoadSettingsAsync()
     {
-        DebugOutput += $"Settings: {SettingsManager.SettingsPath}\n";
         AppSettings = await SettingsManager.LoadAsync();
         Dispatcher.UIThread.Invoke(() =>
         {
@@ -186,16 +192,13 @@ public partial class MainWindowViewModel : ViewModelBase
         });
     }
 
-    public async Task SaveSettings() =>
+    public async Task SaveSettingsAsync() =>
         await SettingsManager.SaveAsync(new(
             SelectedDisplayInfo?.Id,
-            CaptureXParsed,
-            CaptureYParsed,
-            CaptureFrameRateParsed,
+            CaptureConfiguration.CaptureX,
+            CaptureConfiguration.CaptureY,
+            CaptureConfiguration.FrameRate,
             IsPreviewEnabled));
-
-    //TODO: refactor MacStreamer
-    //TODO: refactor this bowl of spaghetti
 
     private void OnFrameReceived(ReadOnlySpan<byte> frame)
     {
@@ -243,7 +246,7 @@ public partial class MainWindowViewModel : ViewModelBase
             await Task.Delay(500);
         }
 
-        IsCapturePermitted = await Streamer.CheckPermissionAsync();
+        IsCapturePermitted = await CaptureService.CheckCapturePermissionAsync();
     }
 
     public void ExecuteToggleCapture(bool? skipPermissionCheck = null)
@@ -258,33 +261,23 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        if (Streamer.IsCapturing)
+        if (CaptureService.IsCapturing)
         {
-            Streamer.Stop();
+            CaptureService.StopCapture();
         }
         else
         {
-            try
-            {
-                Streamer.Start(
-                    SelectedDisplayInfo.Id,
-                    CaptureXParsed, CaptureYParsed,
-                    960, 160,
-                    CaptureFrameRateParsed);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "Unable to start capture");
-                DebugOutput += $"Unable to start capture: {ex.Message}\n{ex.StackTrace}\n";
-            }
+            CaptureService.SetConfiguration(CaptureConfiguration);
+            CaptureService.StartCapture();
         }
+
 #if MACOS
-        IsCapturing = Streamer.IsCapturing;
+        IsCapturing = CaptureService.IsCapturing;
 #elif WINDOWS
         Task.Run(async () =>
         {
             await Task.Delay(100);
-            Dispatcher.UIThread.Invoke(() => IsCapturing = Streamer.IsCapturing);
+            Dispatcher.UIThread.Invoke(() => IsCapturing = CaptureService.IsCapturing);
         });
 #endif
     }
@@ -316,36 +309,53 @@ public partial class MainWindowViewModel : ViewModelBase
         }, token);
     }
 
-    public async Task ExecuteToggleConnection()
+    public async Task ExecuteToggleConnectionAsync()
     {
-        await Task.CompletedTask;
-
         if (IsConnected)
         {
-            ExecuteDisconnect();
+            await ExecuteDisconnectAsync();
         }
         else
         {
-            ExecuteConnect();
+            await ExecuteConnectAsync();
         }
     }
 
-    private void ExecuteConnect()
+    private async Task ExecuteConnectAsync()
     {
-        IsConnected = Push2Usb.Connect();
-        Logger.LogInformation("Connected to server");
+        await Task.CompletedTask;
+
+        try
+        {
+            Push2Usb.Connect();
+
+            Dispatcher.UIThread.Invoke(() => IsConnected = Push2Usb.IsConnected);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Unable to connect to Push");
+        }
     }
 
-    private void ExecuteDisconnect()
+    private async Task ExecuteDisconnectAsync()
     {
         if (IsConnected == false)
         {
             return;
         }
 
-        Push2Usb.Disconnect();
-        IsConnected = Push2Usb.IsConnected;
-        Logger.LogInformation("Disconnected from server");
+        await Task.CompletedTask;
+
+        try
+        {
+            Push2Usb.Disconnect();
+
+            Dispatcher.UIThread.Invoke(() => IsConnected = Push2Usb.IsConnected);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Unable to disconnect from Push");
+        }
     }
 
     public void ExecuteInspectLastFrame()
@@ -391,10 +401,5 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Process.Start("open", $"-R \"{LastFrameDumpFilename}\"");
         }
-    }
-
-    private void ExecuteIdentifyDisplays()
-    {
-        DisplayInfos = new(ScreenHelper.ListDisplays().OrderBy(x => x.Id).ToList());
     }
 }

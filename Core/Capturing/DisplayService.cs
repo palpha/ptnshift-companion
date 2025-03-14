@@ -1,14 +1,39 @@
+﻿using Core.Settings;
+using System.Collections.ObjectModel;
+#if MACOS
 using System.Runtime.InteropServices;
+#endif
 
-namespace Core.Image;
+namespace Core.Capturing;
 
-public static class ScreenHelper
+public record DisplayInfo(int Id, int Width, int Height, bool IsPrimary)
 {
-    public record DisplayInfo(int Id, int Width, int Height, bool IsPrimary)
-    {
-        public override string ToString() => $"{Id}: {Width}x{Height}, {(IsPrimary ? "Primary" : "Secondary")}";
-    }
+    public override string ToString() => $"{Id}: {Width}x{Height}, {(IsPrimary ? "Primary" : "Secondary")}";
+}
 
+public interface IDisplayService
+{
+    ObservableCollection<DisplayInfo> AvailableDisplays { get; }
+    DisplayInfo? GetDefaultDisplay(AppSettings? settings);
+    DisplayInfo? GetDisplay(int? displayId);
+}
+
+public class DisplayService : IDisplayService
+{
+    public ObservableCollection<DisplayInfo> AvailableDisplays { get; }
+
+    public DisplayService() =>
+        AvailableDisplays = new(ListDisplays()
+            .OrderBy(x => x.Id)
+            .ToList());
+
+    public DisplayInfo? GetDefaultDisplay(AppSettings? settings) =>
+        GetDisplay(settings?.SelectedDisplayId) ?? AvailableDisplays.FirstOrDefault();
+
+    public DisplayInfo? GetDisplay(int? displayId) =>
+        AvailableDisplays.FirstOrDefault(x => x.Id == displayId);
+
+#if MACOS
     private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
 
     // Import CGGetActiveDisplayList
@@ -27,8 +52,7 @@ public static class ScreenHelper
     [DllImport(CoreGraphicsLib)]
     private static extern bool CGDisplayIsMain(uint display);
 
-#if MACOS
-    public static IEnumerable<DisplayInfo> ListDisplays()
+    private static IEnumerable<DisplayInfo> ListDisplays()
     {
         uint displayCount = 0;
         var countResult = CGGetActiveDisplayList(0, IntPtr.Zero, ref displayCount);
@@ -66,7 +90,7 @@ public static class ScreenHelper
         }
     }
 #elif WINDOWS
-    public static IEnumerable<DisplayInfo> ListDisplays()
+    private static IEnumerable<DisplayInfo> ListDisplays()
     {
         var displays = new WinScreenStreamLib.DisplayInfo[10];
         var count = WinScreenStreamLib.GetActiveDisplays(displays, displays.Length);

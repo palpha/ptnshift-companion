@@ -1,4 +1,4 @@
-namespace Core.Image;
+namespace Core.Capturing;
 
 public delegate void FrameCapturedHandler(ReadOnlySpan<byte> frameBytes);
 

@@ -1,5 +1,5 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using Core.Image;
+using Core.Capturing;
 using Core.Usb;
 using Moq;
 using Moq.Language.Flow;

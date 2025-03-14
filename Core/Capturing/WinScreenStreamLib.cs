@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace Core.Image;
+namespace Core.Capturing;
 
 public static class WinScreenStreamLib
 {
@@ -10,7 +10,7 @@ public static class WinScreenStreamLib
     internal static extern int GetActiveDisplays([Out] DisplayInfo[] infos, int maxCount);
 
     [DllImport(LibraryName, CharSet = CharSet.Ansi)]
-    internal static extern int StartCapture(int displayId, int frameRate, CaptureFrameCallback cb, IntPtr userContext);
+    internal static extern int StartCapture(int displayId, int frameRate, CaptureFrameCallback cb, nint userContext);
 
     [DllImport(LibraryName, CharSet = CharSet.Ansi)]
     internal static extern void SetFrameRate(int frameRate);
@@ -39,9 +39,9 @@ public static class WinScreenStreamLib
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void CaptureFrameCallback(
-        IntPtr pixels,
+        nint pixels,
         int width,
         int height,
-        IntPtr userContext
+        nint userContext
     );
 }

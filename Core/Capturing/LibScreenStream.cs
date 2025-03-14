@@ -1,16 +1,16 @@
 using System.Runtime.InteropServices;
 
-namespace Core.Image;
+namespace Core.Capturing;
 
 public static class LibScreenStream
 {
     private const string LibraryName = "libscreenstream.dylib";
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void DisplayInfoCallback(IntPtr displayInfos, int count);
+    internal delegate void DisplayInfoCallback(nint displayInfos, int count);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void CaptureCallback(IntPtr data, int length);
+    internal delegate void CaptureCallback(nint data, int length);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "CheckCapturePermission")]
     internal static extern void CheckCapturePermission();

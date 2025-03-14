@@ -1,4 +1,4 @@
-namespace GUI.ViewModels;
+namespace Core.Settings;
 
 public record AppSettings(
     int? SelectedDisplayId = null,

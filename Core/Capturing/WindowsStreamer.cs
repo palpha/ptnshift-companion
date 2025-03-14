@@ -1,10 +1,10 @@
 using System.Runtime.InteropServices;
 
-namespace Core.Image;
+namespace Core.Capturing;
 
 using System;
 
-public class WinStreamer(ICaptureEventSource eventSource) : IStreamer, IFrameRateUpdater, IDisposable
+public class WindowsStreamer(ICaptureEventSource eventSource) : IStreamer, IFrameRateUpdater, IDisposable
 {
     private static WinScreenStreamLib.CaptureFrameCallback? CaptureCallback { get; set; }
 
@@ -37,7 +37,7 @@ public class WinStreamer(ICaptureEventSource eventSource) : IStreamer, IFrameRat
 
         CaptureCallback = OnFrame;
 
-        var result = WinScreenStreamLib.StartCapture(displayId, frameRate, CaptureCallback, IntPtr.Zero);
+        var result = WinScreenStreamLib.StartCapture(displayId, frameRate, CaptureCallback, nint.Zero);
         if (result != 0)
         {
             throw new InvalidOperationException($"Failed to start capture: {result}");
@@ -65,7 +65,7 @@ public class WinStreamer(ICaptureEventSource eventSource) : IStreamer, IFrameRat
         });
     }
 
-    ~WinStreamer() // Finalizer
+    ~WindowsStreamer() // Finalizer
     {
         Dispose();
     }
@@ -77,10 +77,10 @@ public class WinStreamer(ICaptureEventSource eventSource) : IStreamer, IFrameRat
         GC.SuppressFinalize(this);
     }
 
-    private void OnFrame(IntPtr data, int width, int height, IntPtr userContext)
+    private void OnFrame(nint data, int width, int height, nint userContext)
     {
         // If we’ve already stopped or got invalid data, bail out
-        if (IsCapturing == false || width <= 0 || data == IntPtr.Zero)
+        if (IsCapturing == false || width <= 0 || data == nint.Zero)
         {
             return;
         }

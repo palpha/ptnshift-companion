@@ -1,5 +1,6 @@
+#if MACOS
 using System.Runtime.InteropServices;
-using Core.Image;
+using Core.Capturing;
 using Shouldly;
 using Xunit.Abstractions;
 
@@ -7,7 +8,6 @@ namespace Tests.App;
 
 public class LibScreenStreamTests(ITestOutputHelper testOutputHelper)
 {
-#if MACOS
     private ITestOutputHelper TestOutputHelper { get; } = testOutputHelper;
 
     [Fact]
@@ -36,5 +36,5 @@ public class LibScreenStreamTests(ITestOutputHelper testOutputHelper)
 
         await semaphore.WaitAsync();
     }
-#endif
 }
+#endif
