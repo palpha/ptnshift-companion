@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -38,23 +39,25 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private int captureYParsed = 794;
     [ObservableProperty] private int captureFrameRateParsed = 30;
     [ObservableProperty] private CaptureConfiguration captureConfiguration = new(0, 533, 794, 960, 161, 25);
-    [ObservableProperty] private Bitmap? imageSource;
+    [ObservableProperty] private WriteableBitmap? imageSource;
 
     private CancellationTokenSource propertyUpdateCancellationTokenSource = new();
     private CancellationTokenSource cfgUpdateCancellationTokenSource = new();
 
     private int FrameCount { get; set; }
-    private DateTime LastFrameTime { get; set; }
-    private byte[]? LastFrameData { get; set; }
+    private long LastFrameTimestamp { get; set; }
+    private byte[] LastFrameData { get; } = new byte[960 * 161 * 4];
+    private WriteableBitmap? PreviewBitmap { get; set; }
+    private Lock BitmapLock { get; } = new();
 
     private ILogger<MainWindowViewModel> Logger { get; }
     private IDebugWriter DebugWriter { get; }
     private IDisplayService DisplayService { get; }
     private ICaptureService CaptureService { get; }
     private IPtnshiftFinder PtnshiftFinder { get; }
-    private IPreviewGenerator PreviewGenerator { get; }
     private ISettingsManager SettingsManager { get; }
     private IPush2Usb Push2Usb { get; }
+    private TimeProvider TimeProvider { get; }
 
     private AppSettings? AppSettings { get; set; }
 
@@ -64,25 +67,25 @@ public partial class MainWindowViewModel : ViewModelBase
         IDisplayService displayService,
         ICaptureService captureService,
         IPtnshiftFinder ptnshiftFinder,
-        IPreviewGenerator previewGenerator,
         ISettingsManager settingsManager,
-        IPush2Usb push2Usb)
+        IPush2Usb push2Usb,
+        TimeProvider timeProvider)
     {
         Logger = logger;
         DebugWriter = debugWriter;
         DisplayService = displayService;
         CaptureService = captureService;
         PtnshiftFinder = ptnshiftFinder;
-        PreviewGenerator = previewGenerator;
         SettingsManager = settingsManager;
         Push2Usb = push2Usb;
+        TimeProvider = timeProvider;
 
         CaptureService.FrameCaptured += OnFrameReceived;
         DebugWriter.DebugWritten += WriteDebug;
         PtnshiftFinder.LocationLost += OnLocationLost;
         PtnshiftFinder.LocationFound += OnLocationFound;
 
-        LastFrameTime = DateTime.UtcNow;
+        LastFrameTimestamp = TimeProvider.GetTimestamp();
 
         PropertyChanged += (_, e) =>
         {
@@ -234,20 +237,45 @@ public partial class MainWindowViewModel : ViewModelBase
     private void OnFrameReceived(ReadOnlySpan<byte> frame)
     {
         FrameCount++;
-        var now = DateTime.UtcNow;
-        var elapsed = (now - LastFrameTime).TotalSeconds;
+
+        var elapsed = TimeProvider.GetElapsedTime(LastFrameTimestamp).TotalSeconds;
         if (elapsed >= 1)
         {
             MeasuredFrameRate = FrameCount / elapsed;
             FrameCount = 0;
-            LastFrameTime = now;
+            LastFrameTimestamp = TimeProvider.GetTimestamp();
         }
 
         if (IsPreviewEnabled)
         {
-            LastFrameData = frame.ToArray();
-            var image = PreviewGenerator.ConvertRawBytesToPng(frame);
-            Dispatcher.UIThread.Invoke(() => ImageSource = image);
+            frame.CopyTo(LastFrameData);
+            Task.Run(() =>
+            {
+                lock (BitmapLock)
+                {
+                    PreviewBitmap ??= new(
+                        new(960, 160),
+                        new(96, 96),
+                        Avalonia.Platform.PixelFormat.Bgra8888,
+                        Avalonia.Platform.AlphaFormat.Premul);
+
+                    using var lockedFramebuffer = PreviewBitmap.Lock();
+
+                    unsafe
+                    {
+                        new Span<byte>(LastFrameData)[(960 * 4)..] // Skip first row
+                            .CopyTo(new(lockedFramebuffer.Address.ToPointer(), 960 * 160 * 4));
+                    }
+                }
+
+                Dispatcher.UIThread.Post(() =>
+                {
+                    lock (BitmapLock)
+                    {
+                        (ImageSource, PreviewBitmap) = (PreviewBitmap, ImageSource);
+                    }
+                });
+            });
         }
     }
 
@@ -374,11 +402,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void ExecuteInspectLastFrame()
     {
-        if (LastFrameData == null)
-        {
-            return;
-        }
-
         var tmpDir = Path.GetTempPath();
         var tmpFilename = Path.Combine(tmpDir, "last_frame.txt");
         using var writer = new StreamWriter(tmpFilename);

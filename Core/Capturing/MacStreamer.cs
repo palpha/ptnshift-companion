@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -10,6 +11,12 @@ public class MacStreamer(
     IDisplayService displayService) : IStreamer, IDisposable
 {
     private IDisplayService DisplayService { get; } = displayService;
+    private Lock ArrayPoolLock { get; } = new();
+    private Lock FrameLock { get; } = new();
+    private byte[] RegionFrameBuffer { get; } = new byte[960 * 161 * 4];
+    private byte[]? FullScreenFrameBuffer { get; set; }
+    private static LibScreenStream.CaptureCallback? RegionCaptureCallback { get; set; }
+    private static LibScreenStream.CaptureCallback? FullScreenCaptureCallback { get; set; }
 
     public ICaptureEventSource EventSource { get; } = eventSource;
 
@@ -22,17 +29,13 @@ public class MacStreamer(
         return LibScreenStream.IsCapturePermissionGranted();
     }
 
-    private Lock FrameLock { get; } = new();
-
-    private static LibScreenStream.CaptureCallback? RegionCaptureCallback { get; set; }
-    private static LibScreenStream.CaptureCallback? FullScreenCaptureCallback { get; set; }
-
     public void Start(int displayId, int x, int y, int width, int height, int frameRate)
     {
         if (IsCapturing)
+        {
             throw new InvalidOperationException("Capture already in progress.");
+        }
 
-        var regionBufferSize = width * height * 4;
         var display = DisplayService.GetDisplay(displayId);
 
         if (display == null)
@@ -40,9 +43,15 @@ public class MacStreamer(
             throw new InvalidOperationException("Display could not be found.");
         }
 
+        RegionCaptureCallback = OnFrame(RegionFrameBuffer, FrameCaptureType.Region);
+
         var fullScreenCaptureBufferSize = display.Width * display.Height * 4;
-        RegionCaptureCallback = OnFrame(regionBufferSize, FrameCaptureType.Region);
-        FullScreenCaptureCallback = OnFrame(fullScreenCaptureBufferSize, FrameCaptureType.FullScreen);
+        lock (ArrayPoolLock)
+        {
+        }
+
+        FullScreenFrameBuffer = ArrayPool<byte>.Shared.Rent(fullScreenCaptureBufferSize);
+        FullScreenCaptureCallback = OnFrame(FullScreenFrameBuffer, FrameCaptureType.FullScreen);
 
         var result = LibScreenStream.StartCapture(
             displayId,
@@ -59,10 +68,8 @@ public class MacStreamer(
         IsCapturing = true;
     }
 
-    private LibScreenStream.CaptureCallback OnFrame(int bufferSize, FrameCaptureType type)
+    private LibScreenStream.CaptureCallback OnFrame(byte[] frameBuffer, FrameCaptureType type)
     {
-        var frameBuffer = new byte[bufferSize];
-
         return (data, length) =>
         {
             if (IsCapturing == false || length <= 0 || data == nint.Zero)
@@ -97,11 +104,22 @@ public class MacStreamer(
             return;
         }
 
+        lock (ArrayPoolLock)
+        {
+            if (FullScreenFrameBuffer != null)
+            {
+                ArrayPool<byte>.Shared.Return(FullScreenFrameBuffer);
+            }
+        }
+
         var result = LibScreenStream.StopCapture();
         if (result != 0)
         {
             //
         }
+
+        RegionCaptureCallback = null;
+        FullScreenCaptureCallback = null;
 
         IsCapturing = false;
     }

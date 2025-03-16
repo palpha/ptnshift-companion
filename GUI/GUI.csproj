@@ -16,6 +16,7 @@
         <Configurations>Release MacOS;Debug Windows;Debug MacOS;Release Windows</Configurations>
         <Platforms>ARM64;x64</Platforms>
         <LangVersion>default</LangVersion>
+        <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     </PropertyGroup>
     <ItemGroup>
         <AvaloniaResource Include="Assets\**" />

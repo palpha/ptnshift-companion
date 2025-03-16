@@ -46,7 +46,6 @@ public partial class App : Application
                     .AddTransient<ICaptureEventSource, DefaultCaptureEventSource>()
                     .AddSingleton<IPush2Usb, Push2Usb>()
                     .AddTransient<IImageConverter, ImageConverter>()
-                    .AddTransient<IPreviewGenerator, PreviewGenerator>()
                     .AddTransient<IImageSaver, ImageSaver>()
                     .AddTransient<ILibUsbWrapper, DefaultLibUsbWrapper>()
                     .AddTransient<ISettingsManager, SettingsManager>()

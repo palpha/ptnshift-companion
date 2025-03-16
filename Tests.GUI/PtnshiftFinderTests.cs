@@ -29,7 +29,7 @@ public class PtnshiftFinderTests
         var fullScreen = ReadTestImage("fullscreen.png");
         Sut.OnFullScreenCapture(3008, fullScreen);
         var region = ReadTestImage("correct-region.png");
-        Sut.OnRegionCapture(500, 500, region);
+        Sut.OnRegionCapture(region);
 
         lost.ShouldBeFalse();
         result.ShouldBeNull();
@@ -48,7 +48,7 @@ public class PtnshiftFinderTests
         var fullScreen = ReadTestImage("fullscreen.png");
         Sut.OnFullScreenCapture(3008, fullScreen);
         var region = ReadTestImage(filename);
-        Sut.OnRegionCapture(490, 490, region);
+        Sut.OnRegionCapture(region);
         TimeProviderMock.Advance(TimeSpan.FromMilliseconds(600));
 
         lost.ShouldBeTrue();
@@ -67,7 +67,7 @@ public class PtnshiftFinderTests
         var fullScreen = ReadTestImage("fullscreen-no-hit.png");
         Sut.OnFullScreenCapture(3008, fullScreen);
         var region = ReadTestImage("invalid-region.png");
-        Sut.OnRegionCapture(490, 490, region);
+        Sut.OnRegionCapture(region);
         TimeProviderMock.Advance(TimeSpan.FromMilliseconds(600));
 
         Sut.LastLocationCheckTimestamp.ShouldBeGreaterThan(0);

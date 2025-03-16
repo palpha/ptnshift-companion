@@ -11,7 +11,7 @@ public interface IPtnshiftFinder
     event Action LocationLost;
     event Action<Location> LocationFound;
     void OnFullScreenCapture(int width, ReadOnlySpan<byte> buffer);
-    void OnRegionCapture(int posX, int posY, ReadOnlySpan<byte> buffer);
+    void OnRegionCapture(ReadOnlySpan<byte> buffer);
 }
 
 public class PtnshiftFinder : IPtnshiftFinder
@@ -35,12 +35,9 @@ public class PtnshiftFinder : IPtnshiftFinder
     private ITimer LocationCheckTimer { get; }
 
     private bool IsLocationLost { get; set; }
-    private long LastRegionFrameTimestamp { get; set; }
-    private byte[]? LastFullScreenBuffer { get; set; }
-    private int LastFullScreenWidth { get; set; }
 
     // Internal for testing purposes
-    internal long LastLocationCheckTimestamp { get; set; }
+    internal long LastLocationCheckTimestamp { get; private set; }
 
     public PtnshiftFinder(
         IDebugWriter debugWriter,
@@ -59,10 +56,14 @@ public class PtnshiftFinder : IPtnshiftFinder
     public event Action LocationLost = delegate { };
     public event Action<IPtnshiftFinder.Location> LocationFound = delegate { };
 
+    private IPtnshiftFinder.Location? FoundLocation { get; set; }
+
     public void OnFullScreenCapture(int width, ReadOnlySpan<byte> buffer)
     {
-        LastFullScreenBuffer = buffer.ToArray();
-        LastFullScreenWidth = width;
+        if (FindInBuffer(buffer, width, out var location))
+        {
+            FoundLocation = location;
+        }
     }
 
     private void SetLocationLost()
@@ -82,10 +83,8 @@ public class PtnshiftFinder : IPtnshiftFinder
         LocationFound.Invoke(location);
     }
 
-    public void OnRegionCapture(int posX, int posY, ReadOnlySpan<byte> buffer)
+    public void OnRegionCapture(ReadOnlySpan<byte> buffer)
     {
-        LastRegionFrameTimestamp = TimeProvider.GetTimestamp();
-
         if (IsLocationLost)
         {
             // We're already lost, let the timer-based check handle it
@@ -98,7 +97,6 @@ public class PtnshiftFinder : IPtnshiftFinder
             return;
         }
 
-
         // We're offset, leave it to the timer-based check to avoid race conditions
         SetLocationLost();
     }
@@ -106,40 +104,15 @@ public class PtnshiftFinder : IPtnshiftFinder
     private void OnLocationCheckTick(object? state)
     {
         LastLocationCheckTimestamp = TimeProvider.GetTimestamp();
-        FindInFullScreen();
-    }
-
-    private void FindInFullScreen()
-    {
-        var locationPotentiallyLost =
-            LastRegionFrameTimestamp > 0
-            && TimeProvider.GetElapsedTime(LastRegionFrameTimestamp) > TimeSpan.FromMilliseconds(500);
-
-        if ((locationPotentiallyLost == false && IsLocationLost == false) || LastFullScreenBuffer == null)
+        if (FoundLocation != null)
         {
-            return;
-        }
-
-        try
-        {
-            if (FindInBuffer(
-                LastFullScreenBuffer,
-                LastFullScreenWidth,
-                posX: 0, posY: 0,
-                out var location))
-            {
-                SetLocationFound(location ?? new(0, 0));
-            }
-        }
-        catch
-        {
-            //
+            SetLocationFound(FoundLocation);
         }
     }
 
     private static bool FindInBuffer(
         ReadOnlySpan<byte> buffer,
-        int width, int posX, int posY,
+        int width,
         out IPtnshiftFinder.Location? location)
     {
         var index = buffer.IndexOf(ExpectedBytes);
@@ -158,8 +131,8 @@ public class PtnshiftFinder : IPtnshiftFinder
         }
 
         var pixelIndex = index / 4;
-        var x = posX + pixelIndex % width;
-        var y = posY + pixelIndex / width;
+        var x = pixelIndex % width;
+        var y = pixelIndex / width;
         location = new(x, y);
         return true;
     }
