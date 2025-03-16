@@ -2,11 +2,13 @@
 
 namespace Core.Capturing;
 
+// ReSharper disable once UnusedType.Global
 public class WindowsCaptureService(
     IStreamer streamer,
     IDisplayService displayService,
+    IPtnshiftFinder ptnshiftFinder,
     ILogger<WindowsCaptureService> logger)
-    : CaptureServiceBase(streamer, displayService, logger)
+    : CaptureServiceBase(streamer, displayService, ptnshiftFinder, logger)
 {
     public override Task<bool> CheckCapturePermissionAsync() =>
         // On Windows, usually no special permission needed for direct duplication.

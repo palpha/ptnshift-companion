@@ -93,9 +93,10 @@
                 <TextBox Grid.Row="1" Grid.Column="3"
                     Text="{Binding CaptureFrameRate}" />
             </Grid>
+
             <Grid
                 RowDefinitions="Auto, Auto"
-                ColumnDefinitions="Auto, Auto, Auto"
+                ColumnDefinitions="Auto, Auto, Auto, Auto"
                 Margin="12">
 
                 <Grid.Styles>
@@ -120,19 +121,27 @@
                     Command="{Binding ExecuteToggleCapture}"
                     OnContent=""
                     OffContent="" />
-
+                
                 <TextBlock Grid.Row="0" Grid.Column="1"
                     HorizontalAlignment="Left"
-                    Text="Preview" />
+                    Text="Auto-locate" />
                 <ToggleSwitch Grid.Row="1" Grid.Column="1"
+                    IsChecked="{Binding IsAutoLocateEnabled}"
+                    OnContent=""
+                    OffContent="" />                
+
+                <TextBlock Grid.Row="0" Grid.Column="2"
+                    HorizontalAlignment="Left"
+                    Text="Preview" />
+                <ToggleSwitch Grid.Row="1" Grid.Column="2"
                     IsChecked="{Binding IsPreviewEnabled}"
                     OnContent=""
                     OffContent="" />
 
-                <TextBlock Grid.Row="0" Grid.Column="2"
+                <TextBlock Grid.Row="0" Grid.Column="3"
                     HorizontalAlignment="Left"
                     Text="Push" />
-                <ToggleSwitch Grid.Row="1" Grid.Column="2"
+                <ToggleSwitch Grid.Row="1" Grid.Column="3"
                     IsChecked="{Binding IsConnected, Mode=OneWay}"
                     Command="{Binding ExecuteToggleConnectionAsync}"
                     OnContent=""
@@ -153,7 +162,7 @@
                     Foreground="DarkGray"
                     IsReadOnly="True"
                     TextWrapping="Wrap"
-                    MaxLines="50">
+                    MaxLines="20">
                 </TextBox>
             </StackPanel>
         </StackPanel>

@@ -2,10 +2,17 @@ namespace Core.Capturing;
 
 public delegate void FrameCapturedHandler(ReadOnlySpan<byte> frameBytes);
 
+public enum FrameCaptureType
+{
+    Region,
+    FullScreen
+}
+
 public interface ICaptureEventSource
 {
-    event FrameCapturedHandler FrameCaptured;
-    void InvokeFrameCaptured(ReadOnlySpan<byte> frameBytes);
+    event FrameCapturedHandler RegionFrameCaptured;
+    event FrameCapturedHandler FullScreenFrameCaptured;
+    void InvokeFrameCaptured(FrameCaptureType type, ReadOnlySpan<byte> frameBytes);
 }
 
 public delegate void ExceptionHandler(Exception exception);

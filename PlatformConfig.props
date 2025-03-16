@@ -14,13 +14,14 @@
     <PropertyGroup Condition=" '$(IsDebug)' == 'true' ">
         <DebugSymbols Condition=" '$(DebugSymbols)' == '' ">true</DebugSymbols>
         <Optimize Condition=" '$(Optimize)' == '' ">false</Optimize>
+        <DefineConstants>DEBUG</DefineConstants>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(IsMacOS)' == 'true' ">
-        <DefineConstants>MACOS</DefineConstants>
+        <DefineConstants>$(DefineConstants);MACOS</DefineConstants>
     </PropertyGroup>
 
     <PropertyGroup Condition=" '$(IsWindows)' == 'true' ">
-        <DefineConstants>WINDOWS</DefineConstants>
+        <DefineConstants>$(DefineConstants);WINDOWS</DefineConstants>
     </PropertyGroup>
 </Project>

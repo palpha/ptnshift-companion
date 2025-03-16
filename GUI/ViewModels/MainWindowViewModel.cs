@@ -9,6 +9,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Core.Capturing;
+using Core.Diagnostics;
 using Core.Image;
 using Core.Settings;
 using Core.Usb;
@@ -21,6 +22,7 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     [ObservableProperty] private bool isCapturePermitted;
     [ObservableProperty] private bool isCapturing;
+    [ObservableProperty] private bool isAutoLocateEnabled = true;
     [ObservableProperty] private bool isConnected;
     [ObservableProperty] private bool isPreviewEnabled = true;
     [ObservableProperty] private bool isDevMode;
@@ -41,61 +43,49 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource propertyUpdateCancellationTokenSource = new();
     private CancellationTokenSource cfgUpdateCancellationTokenSource = new();
 
-    private Random Rnd { get; } = new();
-
     private int FrameCount { get; set; }
     private DateTime LastFrameTime { get; set; }
     private byte[]? LastFrameData { get; set; }
 
     private ILogger<MainWindowViewModel> Logger { get; }
+    private IDebugWriter DebugWriter { get; }
     private IDisplayService DisplayService { get; }
     private ICaptureService CaptureService { get; }
+    private IPtnshiftFinder PtnshiftFinder { get; }
+    private IPreviewGenerator PreviewGenerator { get; }
     private ISettingsManager SettingsManager { get; }
-    private IImageConverter ImageConverter { get; }
     private IPush2Usb Push2Usb { get; }
 
     private AppSettings? AppSettings { get; set; }
 
     public MainWindowViewModel(
+        ILogger<MainWindowViewModel> logger,
+        IDebugWriter debugWriter,
         IDisplayService displayService,
         ICaptureService captureService,
+        IPtnshiftFinder ptnshiftFinder,
+        IPreviewGenerator previewGenerator,
         ISettingsManager settingsManager,
-        IImageConverter imageConverter,
-        IPush2Usb push2Usb,
-        ILogger<MainWindowViewModel> logger)
+        IPush2Usb push2Usb)
     {
+        Logger = logger;
+        DebugWriter = debugWriter;
         DisplayService = displayService;
         CaptureService = captureService;
+        PtnshiftFinder = ptnshiftFinder;
+        PreviewGenerator = previewGenerator;
         SettingsManager = settingsManager;
-        ImageConverter = imageConverter;
         Push2Usb = push2Usb;
-        Logger = logger;
 
         CaptureService.FrameCaptured += OnFrameReceived;
+        DebugWriter.DebugWritten += WriteDebug;
+        PtnshiftFinder.LocationLost += OnLocationLost;
+        PtnshiftFinder.LocationFound += OnLocationFound;
 
         LastFrameTime = DateTime.UtcNow;
 
         PropertyChanged += (_, e) =>
         {
-            void UpdateCaptureConfiguration(CaptureConfiguration configuration)
-            {
-                CaptureConfiguration = configuration.GetNormalized(DisplayService.AvailableDisplays);
-
-                DelayOperation(
-                    () => Dispatcher.UIThread.Invoke(() =>
-                    {
-                        CaptureX = CaptureConfiguration.CaptureX.ToString();
-                        CaptureY = CaptureConfiguration.CaptureY.ToString();
-                        CaptureFrameRate = CaptureConfiguration.FrameRate.ToString();
-                    }),
-                    100, ref propertyUpdateCancellationTokenSource);
-
-                DelayOperation(
-                    () => CaptureService.SetConfiguration(CaptureConfiguration),
-                    500, ref cfgUpdateCancellationTokenSource);
-            }
-
-
             switch (e.PropertyName)
             {
                 case nameof(SelectedDisplayInfo):
@@ -172,6 +162,45 @@ public partial class MainWindowViewModel : ViewModelBase
         _ = LoadSettingsAsync();
     }
 
+    private void OnLocationLost()
+    {
+        WriteDebug("Lost location");
+    }
+
+    private void OnLocationFound(IPtnshiftFinder.Location x)
+    {
+        if (IsAutoLocateEnabled == false)
+        {
+            return;
+        }
+
+        UpdateCaptureConfiguration(CaptureConfiguration with { CaptureX = x.X, CaptureY = x.Y }, 0);
+    }
+
+    private void UpdateCaptureConfiguration(CaptureConfiguration configuration, int? applicationDelayMs = null)
+    {
+        var newConfiguration = configuration.GetNormalized(DisplayService.AvailableDisplays);
+        if (newConfiguration == CaptureConfiguration)
+        {
+            return;
+        }
+
+        CaptureConfiguration = newConfiguration;
+
+        DelayOperation(
+            () => Dispatcher.UIThread.Invoke(() =>
+            {
+                CaptureX = CaptureConfiguration.CaptureX.ToString();
+                CaptureY = CaptureConfiguration.CaptureY.ToString();
+                CaptureFrameRate = CaptureConfiguration.FrameRate.ToString();
+            }),
+            100, ref propertyUpdateCancellationTokenSource);
+
+        DelayOperation(
+            () => CaptureService.SetConfiguration(CaptureConfiguration),
+            applicationDelayMs ?? 500, ref cfgUpdateCancellationTokenSource);
+    }
+
     private void SetSelectedDisplayInfo(bool? useFallback = null)
     {
         SelectedDisplayInfo ??=
@@ -189,6 +218,7 @@ public partial class MainWindowViewModel : ViewModelBase
             CaptureY = AppSettings.CaptureY.ToString();
             CaptureFrameRate = AppSettings.CaptureFrameRate.ToString();
             IsPreviewEnabled = AppSettings.IsPreviewEnabled;
+            IsAutoLocateEnabled = AppSettings.IsAutoLocateEnabled;
         });
     }
 
@@ -198,7 +228,8 @@ public partial class MainWindowViewModel : ViewModelBase
             CaptureConfiguration.CaptureX,
             CaptureConfiguration.CaptureY,
             CaptureConfiguration.FrameRate,
-            IsPreviewEnabled));
+            IsPreviewEnabled,
+            IsAutoLocateEnabled));
 
     private void OnFrameReceived(ReadOnlySpan<byte> frame)
     {
@@ -212,31 +243,12 @@ public partial class MainWindowViewModel : ViewModelBase
             LastFrameTime = now;
         }
 
-        LastFrameData = frame.ToArray();
-
         if (IsPreviewEnabled)
         {
-            var image = ConvertRawBytesToPng(frame);
+            LastFrameData = frame.ToArray();
+            var image = PreviewGenerator.ConvertRawBytesToPng(frame);
             Dispatcher.UIThread.Invoke(() => ImageSource = image);
         }
-    }
-
-    private Bitmap ConvertRawBytesToPng(ReadOnlySpan<byte> frame)
-    {
-        var bitmap = ImageConverter.ConvertBgra24BytesToBitmap(frame, SKColorType.Bgra8888);
-        using var skImage = SKImage.FromBitmap(bitmap);
-        var data = skImage.Encode(SKEncodedImageFormat.Png, 100);
-
-        if (Logger.IsEnabled(LogLevel.Trace) && Rnd.Next(0, 1000) == 0)
-        {
-            var timestamp = DateTime.UtcNow.ToString("HHmmss_fff");
-            var tempDir = Path.GetTempPath();
-            var tempPath = Path.Combine(tempDir, $"{timestamp}.png");
-            Logger.LogInformation("Saving frame to disk: {Filename}", tempPath);
-            File.WriteAllBytes(tempPath, data.ToArray());
-        }
-
-        return Bitmap.DecodeToWidth(data.AsStream(), 960);
     }
 
     public async Task ExecuteCheckPermission(bool? delay = null)
@@ -288,7 +300,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ref CancellationTokenSource cts)
     {
         cts.Cancel();
-        cts = new CancellationTokenSource();
+        cts = new();
         var token = cts.Token;
         Task.Run(async () =>
         {
@@ -358,6 +370,8 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    private void WriteDebug(string message) => DebugOutput += $"{message}\n";
+
     public void ExecuteInspectLastFrame()
     {
         if (LastFrameData == null)
@@ -384,7 +398,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (LastFrameDumpFilename == "")
         {
-            DebugOutput += $"Frame dump: {tmpFilename}\n";
+            WriteDebug($"Frame dump: {tmpFilename}");
         }
 
         LastFrameDumpFilename = tmpFilename;

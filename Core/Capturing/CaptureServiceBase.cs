@@ -5,17 +5,21 @@ namespace Core.Capturing;
 public abstract class CaptureServiceBase(
     IStreamer streamer,
     IDisplayService displayService,
+    IPtnshiftFinder ptnshiftFinder,
     ILogger<CaptureServiceBase> logger)
     : ICaptureService
 {
     protected IStreamer Streamer { get; } = streamer;
 
     private IDisplayService DisplayService { get; } = displayService;
+    private IPtnshiftFinder PtnshiftFinder { get; } = ptnshiftFinder;
+
+    private int DisplayWidth { get; set; }
 
     protected ILogger<CaptureServiceBase> Logger { get; } = logger;
-    protected CaptureConfiguration? CurrentConfiguration { get; set; }
+    protected CaptureConfiguration? CurrentConfiguration { get; private set; }
 
-    public event Action<ReadOnlySpan<byte>>? FrameCaptured;
+    public event Action<ReadOnlySpan<byte>> FrameCaptured = delegate { };
 
     public bool IsCapturing => Streamer.IsCapturing;
 
@@ -25,6 +29,12 @@ public abstract class CaptureServiceBase(
     {
         var previousConfiguration = CurrentConfiguration;
         CurrentConfiguration = configuration;
+
+        if (configuration.DisplayId.HasValue)
+        {
+            var display = DisplayService.GetDisplay(configuration.DisplayId);
+            DisplayWidth = display?.Width ?? 0;
+        }
 
         if (previousConfiguration != null)
         {
@@ -44,7 +54,8 @@ public abstract class CaptureServiceBase(
             return;
         }
 
-        Streamer.EventSource.FrameCaptured += OnFrameReceived;
+        Streamer.EventSource.RegionFrameCaptured += OnRegionFrameReceived;
+        Streamer.EventSource.FullScreenFrameCaptured += OnFullScreenFrameReceived;
         StartStreamer();
     }
 
@@ -55,8 +66,8 @@ public abstract class CaptureServiceBase(
             return;
         }
 
-        Streamer.EventSource.FrameCaptured -= OnFrameReceived;
-
+        Streamer.EventSource.RegionFrameCaptured -= OnRegionFrameReceived;
+        Streamer.EventSource.FullScreenFrameCaptured -= OnFullScreenFrameReceived;
         Streamer.Stop();
     }
 
@@ -84,8 +95,24 @@ public abstract class CaptureServiceBase(
         }
     }
 
-    private void OnFrameReceived(ReadOnlySpan<byte> frame) =>
+    private void OnRegionFrameReceived(ReadOnlySpan<byte> frame)
+    {
         FrameCaptured?.Invoke(frame);
+        PtnshiftFinder.OnRegionCapture(
+            CurrentConfiguration?.CaptureX ?? 0,
+            CurrentConfiguration?.CaptureY ?? 0,
+            frame);
+    }
+
+    private void OnFullScreenFrameReceived(ReadOnlySpan<byte> frame)
+    {
+        if (DisplayWidth == 0)
+        {
+            return;
+        }
+
+        PtnshiftFinder.OnFullScreenCapture(DisplayWidth, frame);
+    }
 
     protected abstract void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration);
 

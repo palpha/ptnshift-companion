@@ -101,6 +101,6 @@ public class WindowsStreamer(ICaptureEventSource eventSource) : IStreamer, IFram
         }
 
         // Invoke the event
-        EventSource.InvokeFrameCaptured(croppedFrameBytes);
+        EventSource.InvokeFrameCaptured(FrameCaptureType.Region, croppedFrameBytes);
     }
 }

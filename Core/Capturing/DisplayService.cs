@@ -100,5 +100,10 @@ public class DisplayService : IDisplayService
             yield return new(display.id, display.width, display.height, display.isPrimary);
         }
     }
+#else
+    private static IEnumerable<DisplayInfo> ListDisplays()
+    {
+        throw new NotImplementedException();
+    }
 #endif
 }

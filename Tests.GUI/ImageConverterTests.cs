@@ -3,18 +3,14 @@ using Core.Image;
 using Shouldly;
 using SkiaSharp;
 
-namespace Tests.App;
+namespace Tests.GUI;
 
 [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
 public class ImageConverterTests
 {
     private ImageConverter Sut { get; } = new();
 
-    private byte[] GetBytesFromFile(string fileName)
-    {
-        var currentDirectory = Directory.GetCurrentDirectory();
-        return File.ReadAllBytes(Path.Combine(currentDirectory, "..", "..", "..", fileName));
-    }
+    private static byte[] GetBytesFromFile(string fileName) => File.ReadAllBytes(fileName);
 
     [Fact]
     public void When_converting_to_bitmap()

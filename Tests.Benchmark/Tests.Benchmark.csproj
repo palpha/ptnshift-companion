@@ -5,15 +5,16 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <Configurations>Release MacOS;Debug Windows;Debug MacOS;Release Windows</Configurations>
-        <Platforms>AnyCPU;ARM64</Platforms>
+        <Platforms>x64;ARM64</Platforms>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
+        <PackageReference Include="BenchmarkDotNet" Version="0.14.0" />
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Core\Core.csproj" />
+        <ProjectReference Include="..\Core\Core.csproj" />
+        <ProjectReference Include="..\Tests.GUI\Tests.GUI.csproj" />
     </ItemGroup>
 
     <Import Project="..\PlatformConfig.props" />

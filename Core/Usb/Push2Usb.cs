@@ -7,13 +7,11 @@ using Microsoft.Extensions.Logging;
 
 namespace Core.Usb;
 
-
-
 public class Push2Usb : IPush2Usb
 {
     private const int ChunkSize = 512 * 128; // 40960; // 512 * 64; 
 
-    private static ReadOnlyMemory<byte> FrameHeader { get; } = new([
+    internal static ReadOnlyMemory<byte> FrameHeader { get; } = new([
         0xFF, 0xCC, 0xAA, 0x88,
         0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00,
@@ -26,9 +24,9 @@ public class Push2Usb : IPush2Usb
     private IStreamer Streamer { get; }
     private IImageConverter ImageConverter { get; }
     private ILibUsbWrapper LibUsbWrapper { get; }
+    private TimeProvider TimeProvider { get; }
 
     private Lock SyncRoot { get; } = new();
-
     private Lock BufferLock { get; } = new();
     private byte[] SendBuffer { get; set; } = new byte[2048 * 160];
     private byte[] ConversionBuffer { get; set; } = new byte[2048 * 160];
@@ -38,20 +36,22 @@ public class Push2Usb : IPush2Usb
     private IntPtr PushDevice { get; set; }
     private bool IsDisposed { get; set; }
     private int ConsecutiveErrors { get; set; }
-    private DateTime LastFrameTime { get; set; }
-    private Timer FrameCheckTimer { get; set; }
+    private long LastFrameTimestamp { get; set; }
+    private ITimer FrameCheckTimer { get; set; }
 
     public bool IsConnected { get; private set; }
 
     public Push2Usb(ILogger<Push2Usb> logger,
         IStreamer streamer,
         IImageConverter imageConverter,
-        ILibUsbWrapper libUsbWrapper)
+        ILibUsbWrapper libUsbWrapper,
+        TimeProvider timeProvider)
     {
         Logger = logger;
         Streamer = streamer;
         ImageConverter = imageConverter;
         LibUsbWrapper = libUsbWrapper;
+        TimeProvider = timeProvider;
 
         DoMeasure = Logger.IsEnabled(LogLevel.Trace);
         if (DoMeasure)
@@ -65,7 +65,7 @@ public class Push2Usb : IPush2Usb
 
         StartFrameCheck();
     }
-    
+
     public bool Connect()
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
@@ -103,27 +103,27 @@ public class Push2Usb : IPush2Usb
             Logger.LogError(
                 "Claim interface failed: {Message}",
                 GetLibUsbErrorMessage(claimResult));
-            Disconnect();
+            Disconnect(force: true);
             return false;
         }
 
-        Streamer.EventSource.FrameCaptured += OnFrameReceived;
+        Streamer.EventSource.RegionFrameCaptured += OnRegionFrameReceived;
 
         return IsConnected = true;
     }
 
-    private void OnFrameReceived(ReadOnlySpan<byte> bgraBytes)
+    private void OnRegionFrameReceived(ReadOnlySpan<byte> bgraBytes)
     {
-        LastFrameTime = DateTime.UtcNow;
+        LastFrameTimestamp = TimeProvider.GetTimestamp();
         SendFrame(bgraBytes);
     }
 
-    private bool HasReceivedRecentFrame() => DateTime.UtcNow.Subtract(LastFrameTime).TotalSeconds <= 1;
+    private bool HasReceivedRecentFrame() => TimeProvider.GetElapsedTime(LastFrameTimestamp).TotalSeconds <= 1;
 
     [MemberNotNull(nameof(FrameCheckTimer))]
     private void StartFrameCheck()
     {
-        FrameCheckTimer = new(_ =>
+        FrameCheckTimer = TimeProvider.CreateTimer(_ =>
         {
             if (IsConnected && SeenFrames > 0 && HasReceivedRecentFrame() == false)
             {
@@ -132,13 +132,13 @@ public class Push2Usb : IPush2Usb
         }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
-    public void Disconnect()
+    public void Disconnect(bool? force = null)
     {
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
-        Streamer.EventSource.FrameCaptured -= OnFrameReceived;
+        Streamer.EventSource.RegionFrameCaptured -= OnRegionFrameReceived;
 
-        if (IsConnected == false || Identity is null)
+        if (force != true && IsConnected == false)
         {
             throw new InvalidOperationException("Cannot disconnect, not connected.");
         }
@@ -191,12 +191,15 @@ public class Push2Usb : IPush2Usb
             Logger.LogError("Too many errors! Stopping transmission.");
             return;
         }
-        
+
         try
         {
             lock (BufferLock)
             {
-                ImageConverter.ConvertBgra24ToRgb16(bgraFrame, ConversionBuffer);
+                Debug.Assert(bgraFrame.Length == 960 * 161 * 4);
+
+                var croppedFrame = bgraFrame[(960 * 4)..];
+                ImageConverter.ConvertBgra24ToRgb16(croppedFrame, ConversionBuffer);
                 (SendBuffer, ConversionBuffer) = (ConversionBuffer, SendBuffer);
             }
 

@@ -5,4 +5,5 @@ public record AppSettings(
     int CaptureX = 400,
     int CaptureY = 1000,
     int CaptureFrameRate = 30,
-    bool IsPreviewEnabled = true);
+    bool IsPreviewEnabled = true,
+    bool IsAutoLocateEnabled = true);

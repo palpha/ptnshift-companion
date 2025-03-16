@@ -27,7 +27,9 @@ public static class LibScreenStream
         int x, int y,
         int width, int height,
         int frameRate,
-        CaptureCallback callback
+        int fullScreenFrameRate,
+        CaptureCallback regionCallback,
+        CaptureCallback fullScreenCallback
     );
 
     [DllImport(LibraryName, EntryPoint = "StopCapture")]

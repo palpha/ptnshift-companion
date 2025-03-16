@@ -1,7 +1,7 @@
 using Core.Image;
 using SkiaSharp;
 
-namespace Tests.App;
+namespace Tests.GUI;
 
 public class ImageConverterMock : IImageConverter
 {
@@ -14,7 +14,15 @@ public class ImageConverterMock : IImageConverter
         ExpectedOutput.CopyTo(rgb16Bytes);
     }
 
-    public SKBitmap ConvertBgra24BytesToBitmap(ReadOnlySpan<byte> receivedBytes, SKColorType colorType)
+    public SKData ConvertToData(ReadOnlySpan<byte> frame, int? width = null, int? height = null)
+    {
+        throw new NotImplementedException();
+    }
+
+    public SKBitmap ConvertBgra24BytesToBitmap(
+        ReadOnlySpan<byte> receivedBytes,
+        SKColorType colorType,
+        int? width = null, int? height = null)
     {
         throw new NotImplementedException();
     }

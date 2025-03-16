@@ -1,17 +1,19 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-[assembly: InternalsVisibleTo("Tests.App")]
+[assembly: InternalsVisibleTo("Tests.GUI")]
 
 namespace Core.Capturing;
 
-public class MacStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposable
+public class MacStreamer(
+    ICaptureEventSource eventSource,
+    IDisplayService displayService) : IStreamer, IDisposable
 {
-    private byte[]? FrameBuffer { get; set; }
-
-    public bool IsCapturing { get; private set; }
+    private IDisplayService DisplayService { get; } = displayService;
 
     public ICaptureEventSource EventSource { get; } = eventSource;
+
+    public bool IsCapturing { get; private set; }
 
     public async Task<bool> CheckPermissionAsync()
     {
@@ -22,23 +24,33 @@ public class MacStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposab
 
     private Lock FrameLock { get; } = new();
 
-    private static LibScreenStream.CaptureCallback? CaptureCallback { get; set; }
+    private static LibScreenStream.CaptureCallback? RegionCaptureCallback { get; set; }
+    private static LibScreenStream.CaptureCallback? FullScreenCaptureCallback { get; set; }
 
     public void Start(int displayId, int x, int y, int width, int height, int frameRate)
     {
         if (IsCapturing)
             throw new InvalidOperationException("Capture already in progress.");
 
-        CaptureCallback = OnFrame;
+        var regionBufferSize = width * height * 4;
+        var display = DisplayService.GetDisplay(displayId);
 
-        // Prepare FrameBuffer based on expected size
-        var bufferSize = width * height * 4;
-        if (FrameBuffer is null || FrameBuffer.Length != bufferSize)
+        if (display == null)
         {
-            FrameBuffer = new byte[bufferSize];
+            throw new InvalidOperationException("Display could not be found.");
         }
 
-        var result = LibScreenStream.StartCapture(displayId, x, y, width, height, frameRate, CaptureCallback);
+        var fullScreenCaptureBufferSize = display.Width * display.Height * 4;
+        RegionCaptureCallback = OnFrame(regionBufferSize, FrameCaptureType.Region);
+        FullScreenCaptureCallback = OnFrame(fullScreenCaptureBufferSize, FrameCaptureType.FullScreen);
+
+        var result = LibScreenStream.StartCapture(
+            displayId,
+            x, y,
+            width, height,
+            frameRate, fullScreenFrameRate: 1,
+            RegionCaptureCallback,
+            FullScreenCaptureCallback);
         if (result != 0)
         {
             throw new InvalidOperationException($"Failed to start capture: {result}");
@@ -47,48 +59,48 @@ public class MacStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposab
         IsCapturing = true;
     }
 
-    private void OnFrame(nint data, int length)
+    private LibScreenStream.CaptureCallback OnFrame(int bufferSize, FrameCaptureType type)
     {
-        // If we’ve already stopped or got invalid data, bail out
-        if (!IsCapturing || length <= 0 || data == nint.Zero || FrameBuffer is null)
-            return;
+        var frameBuffer = new byte[bufferSize];
 
-        // Clamp/resize if native side gave a bigger-than-expected length
-        if (length > FrameBuffer.Length)
+        return (data, length) =>
         {
-            // Option 1: Skip the frame
-            return;
-
-            // Option 2: Resize and continue
-            //Array.Resize(ref FrameBuffer, length);
-        }
-
-        lock (FrameLock)
-        {
-            try
+            if (IsCapturing == false || length <= 0 || data == nint.Zero)
             {
-                // Copy from unmanaged memory into FrameBuffer
-                Marshal.Copy(data, FrameBuffer, 0, length);
+                return;
+            }
 
-                // Hand off the frame to your event source
-                EventSource.InvokeFrameCaptured(FrameBuffer.AsSpan(0, length));
-            }
-            catch (Exception)
+            if (length > frameBuffer.Length)
             {
-                // Log or handle any unexpected Marshal.Copy issues
+                return;
             }
-        }
+
+            lock (FrameLock)
+            {
+                try
+                {
+                    Marshal.Copy(data, frameBuffer, 0, length);
+                    EventSource.InvokeFrameCaptured(type, frameBuffer.AsSpan(0, length));
+                }
+                catch (Exception)
+                {
+                    //
+                }
+            }
+        };
     }
 
     public void Stop()
     {
-        if (!IsCapturing)
+        if (IsCapturing == false)
+        {
             return;
+        }
 
         var result = LibScreenStream.StopCapture();
         if (result != 0)
         {
-            // Decide how to handle errors
+            //
         }
 
         IsCapturing = false;
@@ -98,15 +110,5 @@ public class MacStreamer(ICaptureEventSource eventSource) : IStreamer, IDisposab
     {
         GC.SuppressFinalize(this);
         Stop();
-    }
-}
-
-public class DefaultCaptureEventSource : ICaptureEventSource
-{
-    public event FrameCapturedHandler? FrameCaptured;
-
-    public void InvokeFrameCaptured(ReadOnlySpan<byte> frameBytes)
-    {
-        FrameCaptured?.Invoke(frameBytes);
     }
 }

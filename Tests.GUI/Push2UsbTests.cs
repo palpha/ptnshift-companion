@@ -1,11 +1,13 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Core.Capturing;
+using Core.Image;
 using Core.Usb;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Moq.Language.Flow;
 using Shouldly;
 
-namespace Tests.App;
+namespace Tests.GUI;
 
 [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
 [SuppressMessage("ReSharper", "LocalVariableHidesMember")]
@@ -24,7 +26,6 @@ public class Push2UsbTests
     private TestLogger<Push2Usb> Logger { get; } = new();
     private Mock<IStreamer> StreamerMock { get; } = new(MockBehavior.Strict);
     private EventSourceMock EventSourceMock { get; } = new();
-    private ImageConverterMock ImageConverterMock { get; } = new ImageConverterMock();
     private Mock<ILibUsbWrapper> LibUsbWrapperMock { get; } = new(MockBehavior.Strict);
 
     private Push2Usb Sut { get; }
@@ -77,8 +78,9 @@ public class Push2UsbTests
         Sut = new(
             Logger,
             StreamerMock.Object,
-            ImageConverterMock,
-            LibUsbWrapperMock.Object);
+            new ImageConverter(),
+            LibUsbWrapperMock.Object,
+            new FakeTimeProvider());
     }
 
     [Fact]
@@ -216,10 +218,9 @@ public class Push2UsbTests
     }
 
     [Fact]
-    public async Task When_receiving_frame()
+    public void When_receiving_frame()
     {
-        byte[] bgraBytes = [1, 2, 3, 4, 5, 6, 7, 8];
-        ImageConverterMock.ExpectedOutput = bgraBytes;
+        var bgraBytes = PtnshiftFinderTests.ReadTestImage("correct-region.png");
 
         int headerLength;
         var headerBytes = new byte[16];
@@ -257,17 +258,11 @@ public class Push2UsbTests
             .Verifiable(Times.AtLeastOnce);
 
         Sut.Connect();
-        EventSourceMock.InvokeFrameCaptured(new(bgraBytes));
-        
-        await Task.Delay(1000);
+        EventSourceMock.InvokeFrameCaptured(FrameCaptureType.Region, new(bgraBytes));
 
-        headerBytes.ShouldBe([
-            0xFF, 0xCC, 0xAA, 0x88,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00
-        ]);
-        frameBytes[0][..8].ShouldBe(bgraBytes.ToArray());
+        headerBytes.ShouldBe(Push2Usb.FrameHeader.ToArray());
+        const int WidthBytes = 960 * 4;
+        frameBytes[0][..8].ShouldBe([7, 244, 7, 248, 7, 244, 7, 248]); // Source: trust me bro
         LibUsbWrapperMock.VerifyAll();
         LibUsbWrapperMock.VerifyNoOtherCalls();
     }

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 
-namespace Tests.App;
+namespace Tests.GUI;
 
 public class TestLogger<T> : ILogger<T>
 {

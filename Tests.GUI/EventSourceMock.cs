@@ -1,6 +1,6 @@
 using Core.Capturing;
 
-namespace Tests.App;
+namespace Tests.GUI;
 
 public class EventSourceMock : ICaptureEventSource
 {
@@ -11,7 +11,7 @@ public class EventSourceMock : ICaptureEventSource
 
     private event FrameCapturedHandler? InternalFrameCaptured;
     
-    public event FrameCapturedHandler? FrameCaptured
+    public event FrameCapturedHandler? RegionFrameCaptured
     {
         add
         {
@@ -25,8 +25,15 @@ public class EventSourceMock : ICaptureEventSource
         }
     }
 
-    public void InvokeFrameCaptured(ReadOnlySpan<byte> frameBytes)
+    public event FrameCapturedHandler? FullScreenFrameCaptured;
+
+    public void InvokeFrameCaptured(FrameCaptureType type, ReadOnlySpan<byte> frameBytes)
     {
+        if (type != FrameCaptureType.Region)
+        {
+            return;
+        }
+        
         Frames.Add(frameBytes.ToArray());
         InternalFrameCaptured?.Invoke(frameBytes);
     }

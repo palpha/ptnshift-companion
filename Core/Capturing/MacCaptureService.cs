@@ -2,11 +2,13 @@
 
 namespace Core.Capturing;
 
+// ReSharper disable once UnusedType.Global
 public class MacCaptureService(
     IStreamer streamer,
     IDisplayService displayService,
+    IPtnshiftFinder ptnshiftFinder,
     ILogger<CaptureServiceBase> logger)
-    : CaptureServiceBase(streamer, displayService, logger)
+    : CaptureServiceBase(streamer, displayService, ptnshiftFinder, logger)
 {
     public override async Task<bool> CheckCapturePermissionAsync()
     {
@@ -15,7 +17,7 @@ public class MacCaptureService(
 
     protected override void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration)
     {
-        if (previousConfiguration.Equals(CurrentConfiguration))
+        if (previousConfiguration.Equals(CurrentConfiguration) || IsCapturing == false)
         {
             return;
         }

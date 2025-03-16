@@ -19,5 +19,11 @@
       <PackageReference Include="SkiaSharp" Version="3.118.0-preview.2.3" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Reference Include="Avalonia.Base">
+        <HintPath>..\GUI\bin\ARM64\Debug MacOS\net9.0\osx-arm64\Avalonia.Base.dll</HintPath>
+      </Reference>
+    </ItemGroup>
+
     <Import Project="..\PlatformConfig.props" />
 </Project>
