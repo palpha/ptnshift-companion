@@ -1,41 +1,30 @@
 #!/bin/bash
+set -e
 
-mkdir -p publish
+version=$1
 
-x64_output="publish/osx-x64"
-arm64_output="publish/osx-arm64"
-
-dotnet publish GUI/GUI.csproj -f net9.0 -r osx-x64 -c "Release MacOS" -o $x64_output -p:UseAppHost=true
-dotnet publish GUI/GUI.csproj -f net9.0 -r osx-arm64 -c "Release MacOS" -o $arm64_output -p:UseAppHost=true
-
-x64_app="$x64_output/PtnshiftCompanion"
-arm64_app="$arm64_output/PtnshiftCompanion"
-
-if [[ ! -f "$x64_app" || ! -f "$arm64_app" ]]; then
-  echo "Error: One or both builds failed!"
+if [ -z "$version" ]; then
+  echo "Error: No version specified"
   exit 1
 fi
 
-# Create app bundle
-app_bundle="publish/PtnshiftCompanion.app"
-rm -rf "$app_bundle"
-mkdir -p "$app_bundle/Contents/MacOS"
-mkdir -p "$app_bundle/Contents/Resources"
+plist_version=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" Info.plist)
 
-# Copy the contents of the app bundle from x64
-cp -a "$x64_output/." "$app_bundle/Contents/MacOS"
+if [ "$version" != "$plist_version" ]; then
+  echo "Error: Version mismatch. Version in Info.plist is $plist_version, but specified version is $version"
+  exit 1
+fi
 
-# Create universal binary
-universal_app="$app_bundle/Contents/MacOS/PtnshiftCompanion"
-lipo -create -output "$universal_app" "$x64_app" "$arm64_app"
+# get apple id from keychain
+apple_id=$(security find-generic-password -s "APPLE_ID" | grep acct | sed 's/ *"acct"<blob>="//' | sed 's/"//g')
 
-# Inject Info.plist
-cp Info.plist "$app_bundle/Contents/Info.plist"
+if [ -z "$apple_id" ]; then
+  echo "Error: No Apple ID found in keychain"
+  exit 1
+fi
 
-# Inject icon
-cp GUI/Assets/appicon.icns "$app_bundle/Contents/Resources/appicon.icns"
-
-echo "Universal binary created at: $universal_app"
-lipo -info "$universal_app"
-
-plutil -p "$app_bundle/Contents/Info.plist"
+./build-mac.sh
+./sign-mac.sh
+./compress-mac.sh $version
+./notarize-mac.sh $version $apple_id
+./upload-mac.sh $version
