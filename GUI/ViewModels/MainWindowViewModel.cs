@@ -5,17 +5,14 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Core.Capturing;
 using Core.Diagnostics;
-using Core.Image;
 using Core.Settings;
 using Core.Usb;
 using Microsoft.Extensions.Logging;
-using SkiaSharp;
 
 namespace GUI.ViewModels;
 
@@ -41,8 +38,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private CaptureConfiguration captureConfiguration = new(0, 533, 794, 960, 161, 25);
     [ObservableProperty] private WriteableBitmap? imageSource;
 
-    private CancellationTokenSource propertyUpdateCancellationTokenSource = new();
-    private CancellationTokenSource cfgUpdateCancellationTokenSource = new();
+    private CancellationTokenSource propertyUpdateCts = new();
+    private CancellationTokenSource cfgUpdateCts = new();
+    private CancellationTokenSource connectionCts = new();
 
     private int FrameCount { get; set; }
     private long LastFrameTimestamp { get; set; }
@@ -87,7 +85,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         LastFrameTimestamp = TimeProvider.GetTimestamp();
 
-        PropertyChanged += (_, e) =>
+        PropertyChanged += (xx, e) =>
         {
             switch (e.PropertyName)
             {
@@ -197,11 +195,11 @@ public partial class MainWindowViewModel : ViewModelBase
                 CaptureY = CaptureConfiguration.CaptureY.ToString();
                 CaptureFrameRate = CaptureConfiguration.FrameRate.ToString();
             }),
-            100, ref propertyUpdateCancellationTokenSource);
+            100, ref propertyUpdateCts);
 
         DelayOperation(
             () => CaptureService.SetConfiguration(CaptureConfiguration),
-            applicationDelayMs ?? 500, ref cfgUpdateCancellationTokenSource);
+            applicationDelayMs ?? 500, ref cfgUpdateCts);
     }
 
     private void SetSelectedDisplayInfo(bool? useFallback = null)
@@ -351,7 +349,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async Task ExecuteToggleConnectionAsync()
     {
-        if (IsConnected)
+        if (IsConnected == false) // reactive
         {
             await ExecuteDisconnectAsync();
         }
@@ -369,7 +367,9 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Push2Usb.Connect();
 
-            Dispatcher.UIThread.Invoke(() => IsConnected = Push2Usb.IsConnected);
+            DelayOperation(
+                () => Dispatcher.UIThread.Invoke(() => IsConnected = Push2Usb.IsConnected),
+                100, ref connectionCts);
         }
         catch (Exception ex)
         {
@@ -379,11 +379,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task ExecuteDisconnectAsync()
     {
-        if (IsConnected == false)
-        {
-            return;
-        }
-
         await Task.CompletedTask;
 
         try

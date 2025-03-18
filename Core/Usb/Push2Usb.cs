@@ -18,7 +18,7 @@ public class Push2Usb : IPush2Usb
         0x00, 0x00, 0x00, 0x00
     ]);
 
-    private static Push2Identity Identity => Push2Identity.Standard;
+    private PushIdentity Identity { get; set; } = PushIdentity.Push2;
 
     private ILogger<Push2Usb> Logger { get; }
     private IStreamer Streamer { get; }
@@ -41,7 +41,8 @@ public class Push2Usb : IPush2Usb
 
     public bool IsConnected { get; private set; }
 
-    public Push2Usb(ILogger<Push2Usb> logger,
+    public Push2Usb(
+        ILogger<Push2Usb> logger,
         IStreamer streamer,
         IImageConverter imageConverter,
         ILibUsbWrapper libUsbWrapper,
@@ -90,8 +91,15 @@ public class Push2Usb : IPush2Usb
         PushDevice = LibUsbWrapper.OpenDeviceWithVidPid(UsbContext, Identity.VendorId, Identity.ProductId);
         if (PushDevice == IntPtr.Zero)
         {
-            Logger.LogError("Unable to find Push 2. Is it connected?");
-            return false;
+            // Try Push 3
+            Identity = PushIdentity.Push3;
+            PushDevice = LibUsbWrapper.OpenDeviceWithVidPid(UsbContext, Identity.VendorId, Identity.ProductId);
+            if (PushDevice == IntPtr.Zero)
+            {
+                Identity = PushIdentity.Push2;
+                Logger.LogError("Unable to find Push 2/3. Is it connected?");
+                return false;
+            }
         }
 
         Logger.LogInformation("Push 2 connected.");

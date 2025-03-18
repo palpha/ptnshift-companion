@@ -142,7 +142,7 @@
                     HorizontalAlignment="Left"
                     Text="Push" />
                 <ToggleSwitch Grid.Row="1" Grid.Column="3"
-                    IsChecked="{Binding IsConnected, Mode=OneWay}"
+                    IsChecked="{Binding IsConnected}"
                     Command="{Binding ExecuteToggleConnectionAsync}"
                     OnContent=""
                     OffContent="" />
