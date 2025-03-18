@@ -118,17 +118,17 @@
                     Text="Capture" />
                 <ToggleSwitch Grid.Row="1" Grid.Column="0"
                     IsChecked="{Binding IsCapturing, Mode=OneWay}"
-                    Command="{Binding ExecuteToggleCapture}"
+                    Command="{Binding ExecuteToggleCaptureAsync}"
                     OnContent=""
                     OffContent="" />
-                
+
                 <TextBlock Grid.Row="0" Grid.Column="1"
                     HorizontalAlignment="Left"
                     Text="Auto-locate" />
                 <ToggleSwitch Grid.Row="1" Grid.Column="1"
                     IsChecked="{Binding IsAutoLocateEnabled}"
                     OnContent=""
-                    OffContent="" />                
+                    OffContent="" />
 
                 <TextBlock Grid.Row="0" Grid.Column="2"
                     HorizontalAlignment="Left"
@@ -175,8 +175,8 @@
 
             <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel>
-                    <Button Content="Check capture permission"
-                        Command="{Binding ExecuteCheckPermission}"
+                    <Button Content="Click to test screen recording permissions"
+                        Command="{Binding ExecuteCheckPermissionAsync}"
                         HorizontalAlignment="Center"
                         Margin="0,0,0,0" />
                 </StackPanel>

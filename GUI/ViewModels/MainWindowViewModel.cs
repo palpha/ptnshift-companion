@@ -41,6 +41,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource propertyUpdateCts = new();
     private CancellationTokenSource cfgUpdateCts = new();
     private CancellationTokenSource connectionCts = new();
+    private CancellationTokenSource permissionCheckCts = new();
 
     private int FrameCount { get; set; }
     private long LastFrameTimestamp { get; set; }
@@ -158,7 +159,11 @@ public partial class MainWindowViewModel : ViewModelBase
         };
 
         AvailableDisplays = DisplayService.AvailableDisplays;
-        _ = ExecuteCheckPermission(delay: true);
+
+        DelayOperation(
+            () => _ = ExecuteCheckPermissionAsync(),
+            1000, ref permissionCheckCts);
+
         _ = ExecuteConnectAsync();
         _ = LoadSettingsAsync();
     }
@@ -246,6 +251,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (IsPreviewEnabled)
         {
+            // abstract and move
+
             frame.CopyTo(LastFrameData);
             Task.Run(() =>
             {
@@ -277,22 +284,14 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public async Task ExecuteCheckPermission(bool? delay = null)
+    public async Task ExecuteCheckPermissionAsync()
     {
-        if (delay == true)
-        {
-            await Task.Delay(500);
-        }
-
         IsCapturePermitted = await CaptureService.CheckCapturePermissionAsync();
     }
 
-    public void ExecuteToggleCapture(bool? skipPermissionCheck = null)
+    public async Task ExecuteToggleCaptureAsync()
     {
-        if (skipPermissionCheck != true)
-        {
-            _ = ExecuteCheckPermission();
-        }
+        await ExecuteCheckPermissionAsync();
 
         if (IsCapturePermitted == false || SelectedDisplayInfo is null)
         {
@@ -318,33 +317,6 @@ public partial class MainWindowViewModel : ViewModelBase
             Dispatcher.UIThread.Invoke(() => IsCapturing = CaptureService.IsCapturing);
         });
 #endif
-    }
-
-    private void DelayOperation(
-        Action action,
-        int delayMs,
-        ref CancellationTokenSource cts)
-    {
-        cts.Cancel();
-        cts = new();
-        var token = cts.Token;
-        Task.Run(async () =>
-        {
-            await Task.Delay(delayMs, token);
-            if (token.IsCancellationRequested)
-            {
-                return;
-            }
-
-            try
-            {
-                action();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Exception in delayed action");
-            }
-        }, token);
     }
 
     public async Task ExecuteToggleConnectionAsync()
@@ -391,6 +363,30 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Logger.LogError(ex, "Unable to disconnect from Push");
         }
+    }
+
+    private void DelayOperation(Action action, int delayMs, ref CancellationTokenSource cts)
+    {
+        cts.Cancel();
+        cts = new();
+        var token = cts.Token;
+        Task.Run(async () =>
+        {
+            await Task.Delay(delayMs, token);
+            if (token.IsCancellationRequested)
+            {
+                return;
+            }
+
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarning(ex, "Exception in delayed action");
+            }
+        }, token);
     }
 
     private void WriteDebug(string message) => DebugOutput += $"{message}\n";
