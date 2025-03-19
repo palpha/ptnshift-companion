@@ -18,7 +18,11 @@ namespace GUI.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
+    #if WINDOWS
+    [ObservableProperty] private bool isCapturePermitted = true;
+#else
     [ObservableProperty] private bool isCapturePermitted;
+#endif
     [ObservableProperty] private bool isCapturing;
     [ObservableProperty] private bool isAutoLocateEnabled = true;
     [ObservableProperty] private bool isConnected;

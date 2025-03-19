@@ -20,6 +20,7 @@ public class PtnshiftFinder : IPtnshiftFinder
 
     private static readonly byte[] PixelA = [0x1C, 0x1C, 0x1C, 0xFF];
     private static readonly byte[] PixelB = [0x2C, 0x2C, 0x2C, 0xFF];
+    private static readonly byte[] PixelC = [0x2B, 0x2B, 0x2B, 0xFF];
 
     private static readonly byte[] ExpectedBytes = new[]
         {
@@ -29,6 +30,16 @@ public class PtnshiftFinder : IPtnshiftFinder
             PixelB, PixelB, PixelB, PixelB
         }
         .SelectMany(x => x).ToArray();
+
+    private static readonly byte[] UnexpectedBytes = new[]
+        {
+            PixelA, PixelB, PixelA, PixelA,
+            PixelB, PixelB, PixelB, PixelA,
+            PixelA, PixelA, PixelA, PixelB,
+            PixelB, PixelB, PixelB, PixelC
+        }
+        .SelectMany(x => x).ToArray();
+
 
     private IDebugWriter DebugWriter { get; }
     private TimeProvider TimeProvider { get; }
@@ -116,6 +127,12 @@ public class PtnshiftFinder : IPtnshiftFinder
         out IPtnshiftFinder.Location? location)
     {
         var index = buffer.IndexOf(ExpectedBytes);
+
+        if (index == -1)
+        {
+            // Windows seems to render the pixels weirdly, maybe anti-aliasing?
+            index = buffer.IndexOf(UnexpectedBytes);
+        }
 
         if (index == -1)
         {
