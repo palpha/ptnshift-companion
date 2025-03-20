@@ -32,7 +32,7 @@ public class MacStreamer(
         if (IsCapturing)
             throw new InvalidOperationException("Capture already in progress.");
 
-        var regionBufferSize = width * height * 4;
+        var regionBufferSize = width * height * 3;
         var display = DisplayService.GetDisplay(displayId);
 
         if (display == null)
@@ -40,7 +40,7 @@ public class MacStreamer(
             throw new InvalidOperationException("Display could not be found.");
         }
 
-        var fullScreenCaptureBufferSize = display.Width * display.Height * 4;
+        var fullScreenCaptureBufferSize = display.Width * display.Height * 3;
         RegionCaptureCallback = OnFrame(regionBufferSize, FrameCaptureType.Region);
         FullScreenCaptureCallback = OnFrame(fullScreenCaptureBufferSize, FrameCaptureType.FullScreen);
 

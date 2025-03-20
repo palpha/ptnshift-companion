@@ -17,7 +17,7 @@ public class ImageConverterTests
     {
         var bytes = GetBytesFromFile("bgra8888bytes.bin");
 
-        using var result = Sut.ConvertBgra24BytesToBitmap(bytes, SKColorType.Bgra8888);
+        using var result = Sut.ConvertPixelBytesToBitmap(bytes, SKColorType.Bgra8888);
 
         result.Width.ShouldBe(960);
         result.Height.ShouldBe(160);
@@ -29,7 +29,7 @@ public class ImageConverterTests
         var bytes = GetBytesFromFile("bgra8888bytes.bin");
         var frame = new byte[2048 * 160];
 
-        Sut.ConvertBgra24ToRgb16(bytes, frame);
+        Sut.ConvertBgra32ToRgb16(bytes, frame);
 
         var expected = GetBytesFromFile("push2framebytes.bin");
         frame.ShouldBe(expected);

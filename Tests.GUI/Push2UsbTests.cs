@@ -261,7 +261,6 @@ public class Push2UsbTests
         EventSourceMock.InvokeFrameCaptured(FrameCaptureType.Region, new(bgraBytes));
 
         headerBytes.ShouldBe(Push2Usb.FrameHeader.ToArray());
-        const int WidthBytes = 960 * 4;
         frameBytes[0][..8].ShouldBe([7, 244, 7, 248, 7, 244, 7, 248]); // Source: trust me bro
         LibUsbWrapperMock.VerifyAll();
         LibUsbWrapperMock.VerifyNoOtherCalls();

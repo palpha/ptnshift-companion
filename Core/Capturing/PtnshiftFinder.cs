@@ -147,7 +147,7 @@ public class PtnshiftFinder : IPtnshiftFinder
             return true;
         }
 
-        var pixelIndex = index / 4;
+        var pixelIndex = index / 3;
         var x = pixelIndex % width;
         var y = pixelIndex / width;
         location = new(x, y);

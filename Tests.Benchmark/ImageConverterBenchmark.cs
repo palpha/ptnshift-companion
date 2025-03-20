@@ -19,7 +19,7 @@ public class ImageConverterBenchmark
     public void Convert()
     {
         var target = new byte[2048 * 160];
-        Converter.ConvertBgra24ToRgb16(RawBytes.Span, target);
+        Converter.ConvertBgra32ToRgb16(RawBytes.Span, target);
     }
 
     private byte[] GetBytesFromFile(string fileName) =>

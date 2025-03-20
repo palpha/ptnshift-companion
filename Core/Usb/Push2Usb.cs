@@ -204,10 +204,10 @@ public class Push2Usb : IPush2Usb
         {
             lock (BufferLock)
             {
-                Debug.Assert(bgraFrame.Length == 960 * 161 * 4);
+                Debug.Assert(bgraFrame.Length == 960 * 161 * 3);
 
-                var croppedFrame = bgraFrame[(960 * 4)..];
-                ImageConverter.ConvertBgra24ToRgb16(croppedFrame, ConversionBuffer);
+                var croppedFrame = bgraFrame[(960 * 3)..];
+                ImageConverter.ConvertRgb24ToRgb16(croppedFrame, ConversionBuffer);
                 (SendBuffer, ConversionBuffer) = (ConversionBuffer, SendBuffer);
             }
 
