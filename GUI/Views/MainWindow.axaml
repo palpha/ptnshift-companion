@@ -149,8 +149,8 @@
             </Grid>
 
             <StackPanel IsVisible="{Binding IsDevMode}">
-                <WrapPanel Margin="0,0,0,12">
-                    <Button Content="Dump last frame" Command="{Binding ExecuteInspectLastFrame}" />
+                <WrapPanel Margin="0,0,0,12" IsVisible="{Binding IsDebug}">
+                    <Button Content="Dump last frame" Command="{Binding ExecuteInspectLastFrameAsync}" />
                     <Button Content="Open frame dump file" Command="{Binding ExecuteOpenLastFrameDump}" />
                 </WrapPanel>
                 <TextBox Text="{Binding DebugOutput}"
