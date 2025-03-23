@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -30,19 +31,21 @@ public class MacStreamer(
     public void Start(int displayId, int x, int y, int width, int height, int frameRate)
     {
         if (IsCapturing)
+        {
             throw new InvalidOperationException("Capture already in progress.");
+        }
 
-        var regionBufferSize = width * height * 3;
         var display = DisplayService.GetDisplay(displayId);
-
         if (display == null)
         {
             throw new InvalidOperationException("Display could not be found.");
         }
 
-        var fullScreenCaptureBufferSize = display.Width * display.Height * 3;
+        var regionBufferSize = width * height * 3;
         RegionCaptureCallback = OnFrame(regionBufferSize, FrameCaptureType.Region);
-        FullScreenCaptureCallback = OnFrame(fullScreenCaptureBufferSize, FrameCaptureType.FullScreen);
+
+        var fullScreenBufferSize = display.Width * display.Height * 3;
+        FullScreenCaptureCallback = OnFrame(fullScreenBufferSize, FrameCaptureType.FullScreen);
 
         var result = LibScreenStream.StartCapture(
             displayId,
@@ -59,9 +62,16 @@ public class MacStreamer(
         IsCapturing = true;
     }
 
+    private Dictionary<FrameCaptureType, byte[]> Buffers { get; } = new();
+
     private LibScreenStream.CaptureCallback OnFrame(int bufferSize, FrameCaptureType type)
     {
-        var frameBuffer = new byte[bufferSize];
+        if (Buffers.ContainsKey(type))
+        {
+            throw new InvalidOperationException("Capture already in progress.");
+        }
+
+        var frameBuffer = Buffers[type] = ArrayPool<byte>.Shared.Rent(bufferSize);
 
         return (data, length) =>
         {
@@ -70,7 +80,7 @@ public class MacStreamer(
                 return;
             }
 
-            if (length > frameBuffer.Length)
+            if (length > bufferSize)
             {
                 return;
             }
@@ -92,6 +102,16 @@ public class MacStreamer(
 
     public void Stop()
     {
+        if (Buffers.Count > 0)
+        {
+            foreach (var buffer in Buffers.Values)
+            {
+                ArrayPool<byte>.Shared.Return(buffer);
+            }
+
+            Buffers.Clear();
+        }
+
         if (IsCapturing == false)
         {
             return;
