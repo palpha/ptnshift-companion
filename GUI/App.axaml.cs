@@ -16,7 +16,7 @@ using Core.Diagnostics;
 
 namespace GUI;
 
-public partial class App : Application
+public class App : Application
 {
     public override void Initialize()
     {
@@ -30,28 +30,43 @@ public partial class App : Application
             // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
-            var provider =
-                new ServiceCollection()
-                    .AddLogging()
-                    .AddSingleton(TimeProvider.System)
-                    .AddSingleton<IDebugWriter, DebugWriter>()
-                    .AddSingleton<IPtnshiftFinder, PtnshiftFinder>()
-#if MACOS
+            var services = new ServiceCollection()
+                .AddLogging();
+
+            // Event producers and consumers
+            services
+                .AddSingleton(TimeProvider.System)
+                .AddSingleton<IDebugWriter, DebugWriter>()
+                .AddSingleton<IPtnshiftFinder, PtnshiftFinder>()
+                .AddSingleton<IPush2Usb, Push2Usb>()
+                .AddSingleton<IFrameDebugger, FrameDebugger>()
+                .AddSingleton<IFrameRateReporter, FrameRateCounter>()
+                .AddSingleton<IPreviewRenderer, PreviewRenderer>();
+
+            // Stateless or single-consumer services 
+            services
+                .AddTransient<ICaptureEventSource, DefaultCaptureEventSource>()
+                .AddTransient<IImageConverter, ImageConverter>()
+                .AddTransient<IImageSaver, ImageSaver>()
+                .AddTransient<ILibUsbWrapper, DefaultLibUsbWrapper>()
+                .AddTransient<ISettingsManager, SettingsManager>()
+                .AddTransient<IDisplayService, DisplayService>()
+                .AddTransient<MainWindowViewModel>();
+
+            if (OperatingSystem.IsMacOS())
+            {
+                services
                     .AddSingleton<IStreamer, MacStreamer>()
-                    .AddTransient<ICaptureService, MacCaptureService>()
-#elif WINDOWS
+                    .AddSingleton<ICaptureService, MacCaptureService>();
+            }
+            else if (OperatingSystem.IsWindows())
+            {
+                services
                     .AddSingleton<IStreamer, WindowsStreamer>()
-                    .AddTransient<ICaptureService, WindowsCaptureService>()
-#endif
-                    .AddTransient<ICaptureEventSource, DefaultCaptureEventSource>()
-                    .AddSingleton<IPush2Usb, Push2Usb>()
-                    .AddTransient<IImageConverter, ImageConverter>()
-                    .AddTransient<IImageSaver, ImageSaver>()
-                    .AddTransient<ILibUsbWrapper, DefaultLibUsbWrapper>()
-                    .AddTransient<ISettingsManager, SettingsManager>()
-                    .AddTransient<IDisplayService, DisplayService>()
-                    .AddTransient<MainWindowViewModel>()
-                    .BuildServiceProvider();
+                    .AddSingleton<ICaptureService, WindowsCaptureService>();
+            }
+
+            var provider = services.BuildServiceProvider();
             var model = provider.GetRequiredService<MainWindowViewModel>();
             desktop.MainWindow = new MainWindow
             {

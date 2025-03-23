@@ -1,15 +1,17 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Core;
 using Core.Capturing;
 using Core.Diagnostics;
+using Core.Image;
 using Core.Settings;
 using Core.Usb;
 using Microsoft.Extensions.Logging;
@@ -18,16 +20,13 @@ namespace GUI.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
-    #if WINDOWS
-    [ObservableProperty] private bool isCapturePermitted = true;
-#else
-    [ObservableProperty] private bool isCapturePermitted;
-#endif
+    [ObservableProperty] private bool isCapturePermitted = OperatingSystem.IsWindows();
     [ObservableProperty] private bool isCapturing;
     [ObservableProperty] private bool isAutoLocateEnabled = true;
     [ObservableProperty] private bool isConnected;
     [ObservableProperty] private bool isPreviewEnabled = true;
     [ObservableProperty] private bool isDevMode;
+    [ObservableProperty] private bool isDebug;
     [ObservableProperty] private double measuredFrameRate;
     [ObservableProperty] private string lastFrameDumpFilename = "";
     [ObservableProperty] private string debugOutput = "";
@@ -45,13 +44,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource propertyUpdateCts = new();
     private CancellationTokenSource cfgUpdateCts = new();
     private CancellationTokenSource connectionCts = new();
+    // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private CancellationTokenSource permissionCheckCts = new();
-
-    private int FrameCount { get; set; }
-    private long LastFrameTimestamp { get; set; }
-    private byte[] LastFrameData { get; } = new byte[960 * 161 * 4];
-    private WriteableBitmap? PreviewBitmap { get; set; }
-    private Lock BitmapLock { get; } = new();
 
     private ILogger<MainWindowViewModel> Logger { get; }
     private IDebugWriter DebugWriter { get; }
@@ -60,7 +54,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private IPtnshiftFinder PtnshiftFinder { get; }
     private ISettingsManager SettingsManager { get; }
     private IPush2Usb Push2Usb { get; }
-    private TimeProvider TimeProvider { get; }
+    private IPreviewRenderer PreviewRenderer { get; }
+    private IFrameDebugger FrameDebugger { get; }
 
     private AppSettings? AppSettings { get; set; }
 
@@ -72,7 +67,9 @@ public partial class MainWindowViewModel : ViewModelBase
         IPtnshiftFinder ptnshiftFinder,
         ISettingsManager settingsManager,
         IPush2Usb push2Usb,
-        TimeProvider timeProvider)
+        IPreviewRenderer previewRenderer,
+        IFrameDebugger frameDebugger,
+        IFrameRateReporter frameRateReporter)
     {
         Logger = logger;
         DebugWriter = debugWriter;
@@ -81,95 +78,103 @@ public partial class MainWindowViewModel : ViewModelBase
         PtnshiftFinder = ptnshiftFinder;
         SettingsManager = settingsManager;
         Push2Usb = push2Usb;
-        TimeProvider = timeProvider;
+        PreviewRenderer = previewRenderer;
+        FrameDebugger = frameDebugger;
 
-        CaptureService.FrameCaptured += OnFrameReceived;
         DebugWriter.DebugWritten += WriteDebug;
         PtnshiftFinder.LocationLost += OnLocationLost;
         PtnshiftFinder.LocationFound += OnLocationFound;
+        PreviewRenderer.PreviewRendered += OnPreviewRendered;
+        FrameDebugger.FrameDumpWritten += OnFrameDumpWritten;
+        frameRateReporter.FrameRateChanged += OnFrameRateChanged;
 
-        LastFrameTimestamp = TimeProvider.GetTimestamp();
-
-        PropertyChanged += (xx, e) =>
-        {
-            switch (e.PropertyName)
-            {
-                case nameof(SelectedDisplayInfo):
-                {
-                    if (SelectedDisplayInfo == null)
-                    {
-                        return;
-                    }
-
-                    UpdateCaptureConfiguration(CaptureConfiguration with
-                    {
-                        DisplayId = SelectedDisplayInfo!.Id
-                    });
-
-                    break;
-                }
-                case nameof(CaptureX):
-                {
-                    if (CaptureX == CaptureConfiguration.CaptureX.ToString())
-                    {
-                        return;
-                    }
-
-                    if (int.TryParse(CaptureX, out var x))
-                    {
-                        UpdateCaptureConfiguration(CaptureConfiguration with
-                        {
-                            CaptureX = x
-                        });
-                    }
-
-                    break;
-                }
-                case nameof(CaptureY):
-                {
-                    if (CaptureY == CaptureConfiguration.CaptureY.ToString())
-                    {
-                        return;
-                    }
-
-                    if (int.TryParse(CaptureY, out var x))
-                    {
-                        UpdateCaptureConfiguration(CaptureConfiguration with
-                        {
-                            CaptureY = x
-                        });
-                    }
-
-                    break;
-                }
-                case nameof(CaptureFrameRate):
-                {
-                    if (CaptureFrameRate == CaptureConfiguration.FrameRate.ToString())
-                    {
-                        return;
-                    }
-
-                    if (int.TryParse(CaptureFrameRate, out var x))
-                    {
-                        UpdateCaptureConfiguration(CaptureConfiguration with
-                        {
-                            FrameRate = x
-                        });
-                    }
-
-                    break;
-                }
-            }
-        };
+        PropertyChanged += OnPropertyChanged;
 
         AvailableDisplays = DisplayService.AvailableDisplays;
+        IsDebug = AppConstants.IsDebug;
+
+        PreviewRenderer.IsPreviewEnabled = IsPreviewEnabled;
 
         DelayOperation(
             () => _ = ExecuteCheckPermissionAsync(),
             1000, ref permissionCheckCts);
-
         _ = ExecuteConnectAsync();
         _ = LoadSettingsAsync();
+    }
+
+    private void OnPropertyChanged(object? _, PropertyChangedEventArgs e)
+    {
+        switch (e.PropertyName)
+        {
+            case nameof(SelectedDisplayInfo):
+            {
+                if (SelectedDisplayInfo == null)
+                {
+                    return;
+                }
+
+                UpdateCaptureConfiguration(CaptureConfiguration with { DisplayId = SelectedDisplayInfo!.Id });
+
+                break;
+            }
+            case nameof(CaptureX):
+            {
+                if (CaptureX == CaptureConfiguration.CaptureX.ToString())
+                {
+                    return;
+                }
+
+                if (int.TryParse(CaptureX, out var x))
+                {
+                    UpdateCaptureConfiguration(CaptureConfiguration with { CaptureX = x });
+                }
+
+                break;
+            }
+            case nameof(CaptureY):
+            {
+                if (CaptureY == CaptureConfiguration.CaptureY.ToString())
+                {
+                    return;
+                }
+
+                if (int.TryParse(CaptureY, out var x))
+                {
+                    UpdateCaptureConfiguration(CaptureConfiguration with { CaptureY = x });
+                }
+
+                break;
+            }
+            case nameof(CaptureFrameRate):
+            {
+                if (CaptureFrameRate == CaptureConfiguration.FrameRate.ToString())
+                {
+                    return;
+                }
+
+                if (int.TryParse(CaptureFrameRate, out var x))
+                {
+                    UpdateCaptureConfiguration(CaptureConfiguration with { FrameRate = x });
+                }
+
+                break;
+            }
+            case nameof(IsPreviewEnabled):
+            {
+                PreviewRenderer.IsPreviewEnabled = IsPreviewEnabled;
+                break;
+            }
+        }
+    }
+
+    private void OnFrameDumpWritten(string filename)
+    {
+        if (LastFrameDumpFilename != filename)
+        {
+            WriteDebug($"Frame dump: {filename}");
+        }
+
+        LastFrameDumpFilename = filename;
     }
 
     private void OnLocationLost()
@@ -185,6 +190,11 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         UpdateCaptureConfiguration(CaptureConfiguration with { CaptureX = x.X, CaptureY = x.Y }, 0);
+    }
+
+    private void OnPreviewRendered(WriteableBitmap previewBitmap)
+    {
+        Dispatcher.UIThread.Post(() => ImageSource = previewBitmap);
     }
 
     private void UpdateCaptureConfiguration(CaptureConfiguration configuration, int? applicationDelayMs = null)
@@ -241,51 +251,9 @@ public partial class MainWindowViewModel : ViewModelBase
             IsPreviewEnabled,
             IsAutoLocateEnabled));
 
-    private void OnFrameReceived(ReadOnlySpan<byte> frame)
+    private void OnFrameRateChanged(double frameRate)
     {
-        FrameCount++;
-
-        var elapsed = TimeProvider.GetElapsedTime(LastFrameTimestamp).TotalSeconds;
-        if (elapsed >= 1)
-        {
-            MeasuredFrameRate = FrameCount / elapsed;
-            FrameCount = 0;
-            LastFrameTimestamp = TimeProvider.GetTimestamp();
-        }
-
-        if (IsPreviewEnabled)
-        {
-            // abstract and move
-
-            frame.CopyTo(LastFrameData);
-            Task.Run(() =>
-            {
-                lock (BitmapLock)
-                {
-                    PreviewBitmap ??= new(
-                        new(960, 160),
-                        new(96, 96),
-                        Avalonia.Platform.PixelFormat.Bgra8888,
-                        Avalonia.Platform.AlphaFormat.Premul);
-
-                    using var lockedFramebuffer = PreviewBitmap.Lock();
-
-                    unsafe
-                    {
-                        new Span<byte>(LastFrameData)[(960 * 4)..] // Skip first row
-                            .CopyTo(new(lockedFramebuffer.Address.ToPointer(), 960 * 160 * 4));
-                    }
-                }
-
-                Dispatcher.UIThread.Post(() =>
-                {
-                    lock (BitmapLock)
-                    {
-                        (ImageSource, PreviewBitmap) = (PreviewBitmap, ImageSource);
-                    }
-                });
-            });
-        }
+        MeasuredFrameRate = frameRate;
     }
 
     public async Task ExecuteCheckPermissionAsync()
@@ -312,15 +280,18 @@ public partial class MainWindowViewModel : ViewModelBase
             CaptureService.StartCapture();
         }
 
-#if MACOS
-        IsCapturing = CaptureService.IsCapturing;
-#elif WINDOWS
-        Task.Run(async () =>
+        if (OperatingSystem.IsMacOS())
         {
-            await Task.Delay(100);
-            Dispatcher.UIThread.Invoke(() => IsCapturing = CaptureService.IsCapturing);
-        });
-#endif
+            IsCapturing = CaptureService.IsCapturing;
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(100);
+                Dispatcher.UIThread.Invoke(() => IsCapturing = CaptureService.IsCapturing);
+            });
+        }
     }
 
     public async Task ExecuteToggleConnectionAsync()
@@ -395,31 +366,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void WriteDebug(string message) => DebugOutput += $"{message}\n";
 
-    public void ExecuteInspectLastFrame()
+    public async Task ExecuteInspectLastFrameAsync()
     {
-        var tmpDir = Path.GetTempPath();
-        var tmpFilename = Path.Combine(tmpDir, "last_frame.txt");
-        using var writer = new StreamWriter(tmpFilename);
-
-        for (var i = 0; i < LastFrameData.Length; i += 4)
-        {
-            var r = LastFrameData[i + 2];
-            var g = LastFrameData[i + 1];
-            var b = LastFrameData[i];
-            writer.Write($"0x{r:X2}{g:X2}{b:X2} ");
-
-            if ((i / 4 + 1) % 960 == 0)
-            {
-                writer.WriteLine();
-            }
-        }
-
-        if (LastFrameDumpFilename == "")
-        {
-            WriteDebug($"Frame dump: {tmpFilename}");
-        }
-
-        LastFrameDumpFilename = tmpFilename;
+        await FrameDebugger.DumpLastFrameAsync();
     }
 
     public void ExecuteOpenLastFrameDump()
@@ -432,6 +381,10 @@ public partial class MainWindowViewModel : ViewModelBase
         if (OperatingSystem.IsMacOS())
         {
             Process.Start("open", $"-R \"{LastFrameDumpFilename}\"");
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            Process.Start("explorer.exe", $"/select,\"{LastFrameDumpFilename}\"");
         }
     }
 }
