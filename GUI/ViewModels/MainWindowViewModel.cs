@@ -44,6 +44,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource propertyUpdateCts = new();
     private CancellationTokenSource cfgUpdateCts = new();
     private CancellationTokenSource connectionCts = new();
+
     // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private CancellationTokenSource permissionCheckCts = new();
 
@@ -197,7 +198,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Dispatcher.UIThread.Post(() => ImageSource = previewBitmap);
     }
 
-    private void UpdateCaptureConfiguration(CaptureConfiguration configuration, int? applicationDelayMs = null)
+    public void UpdateCaptureConfiguration(CaptureConfiguration configuration, int? applicationDelayMs = null)
     {
         var newConfiguration = configuration.GetNormalized(DisplayService.AvailableDisplays);
         if (newConfiguration == CaptureConfiguration)
@@ -218,7 +219,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         DelayOperation(
             () => CaptureService.SetConfiguration(CaptureConfiguration),
-            applicationDelayMs ?? 500, ref cfgUpdateCts);
+            applicationDelayMs ?? CaptureService.GetConfigurationChangeDelayMs(CaptureConfiguration), ref cfgUpdateCts);
     }
 
     private void SetSelectedDisplayInfo(bool? useFallback = null)

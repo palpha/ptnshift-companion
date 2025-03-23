@@ -24,6 +24,7 @@ public abstract class CaptureServiceBase(
     public bool IsCapturing => Streamer.IsCapturing;
 
     public abstract Task<bool> CheckCapturePermissionAsync();
+    public abstract int GetConfigurationChangeDelayMs(CaptureConfiguration configuration);
 
     public virtual void SetConfiguration(CaptureConfiguration configuration)
     {

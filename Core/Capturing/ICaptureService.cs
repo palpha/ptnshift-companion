@@ -7,6 +7,7 @@ public interface ICaptureService : IDisposable
     bool IsCapturing { get; }
 
     Task<bool> CheckCapturePermissionAsync();
+    int GetConfigurationChangeDelayMs(CaptureConfiguration configuration);
     void SetConfiguration(CaptureConfiguration configuration);
     void StartCapture();
     void StopCapture();

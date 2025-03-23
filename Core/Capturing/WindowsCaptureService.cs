@@ -14,6 +14,9 @@ public class WindowsCaptureService(
         // On Windows, usually no special permission needed for direct duplication.
         Task.FromResult(true);
 
+    public override int GetConfigurationChangeDelayMs(CaptureConfiguration configuration) =>
+        CurrentConfiguration?.DisplayId != configuration.DisplayId ? 500 : 0;
+
     protected override void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration)
     {
         if (CurrentConfiguration == null)
