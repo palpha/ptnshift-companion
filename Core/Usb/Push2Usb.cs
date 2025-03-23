@@ -176,7 +176,7 @@ public class Push2Usb : IPush2Usb
     private int SkippedFrames { get; set; }
     private int SeenFrames { get; set; }
 
-    public void SendFrame(ReadOnlySpan<byte> bgraFrame)
+    public void SendFrame(ReadOnlySpan<byte> rgbFrame)
     {
         SeenFrames++;
 
@@ -204,9 +204,9 @@ public class Push2Usb : IPush2Usb
         {
             lock (BufferLock)
             {
-                Debug.Assert(bgraFrame.Length == 960 * 161 * 3);
+                Debug.Assert(rgbFrame.Length >= 960 * 161 * 3);
 
-                var croppedFrame = bgraFrame[(960 * 3)..];
+                var croppedFrame = rgbFrame[(960 * 3)..];
                 ImageConverter.ConvertRgb24ToRgb16(croppedFrame, ConversionBuffer);
                 (SendBuffer, ConversionBuffer) = (ConversionBuffer, SendBuffer);
             }

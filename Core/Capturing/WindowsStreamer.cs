@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Runtime.InteropServices;
 
 namespace Core.Capturing;
@@ -94,6 +95,48 @@ public class WindowsStreamer(
     private byte[]? FullScreenBuffer { get; set; }
     private byte[]? RegionFrameBuffer { get; set; }
 
+    private void SendFullScreen(nint data, int width, int height)
+    {
+        var frameSize = width * height * 3;
+        var buffer = ArrayPool<byte>.Shared.Rent(frameSize);
+        try
+        {
+            Marshal.Copy(data, buffer, 0, frameSize);
+            EventSource.InvokeFrameCaptured(FrameCaptureType.FullScreen, buffer);
+            LastFullScreenTimestamp = TimeProvider.GetTimestamp();
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
+    private void SendRegion(nint data, int width, int height)
+    {
+        var rowSize = Width * 3; // 3 bytes per pixel
+        var bufferSize = rowSize * Height;
+        var buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+        try
+        {
+            for (var row = 0; row < Height; row++)
+            {
+                // Calculate where to read from in the native data
+                var srcOffset = (Y + row) * width * 3 + X * 3;
+
+                // Calculate into which offset in the RegionFrameBuffer
+                var dstOffset = row * rowSize;
+
+                Marshal.Copy(IntPtr.Add(data, srcOffset), buffer, dstOffset, rowSize);
+            }
+
+            EventSource.InvokeFrameCaptured(FrameCaptureType.Region, buffer);
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer);
+        }
+    }
+
     private void OnFrame(nint data, int width, int height, nint userContext)
     {
         // If we've already stopped or got invalid data, bail out
@@ -102,37 +145,12 @@ public class WindowsStreamer(
             return;
         }
 
-        // Convert the data to a managed byte array
-        var frameSize = width * height * 3;
-        FullScreenBuffer = FullScreenBuffer?.Length >= frameSize
-            ? FullScreenBuffer
-            : new byte[frameSize];
-        Marshal.Copy(data, FullScreenBuffer, 0, frameSize);
-
         if (LastFullScreenTimestamp == 0
             || TimeProvider.GetElapsedTime(LastFullScreenTimestamp) > TimeSpan.FromSeconds(1))
         {
-            // Call the full screen frame captured event
-            EventSource.InvokeFrameCaptured(FrameCaptureType.FullScreen, FullScreenBuffer);
-            LastFullScreenTimestamp = TimeProvider.GetTimestamp();
+            SendFullScreen(data, width, height);
         }
 
-        // Take a portion of the frame as specified by X, Y, Width, Height
-        // assuming that the data is in 24-bit RGB format
-        // (4 bytes per pixel, with the first byte being blue, second green, third red, and fourth alpha)
-        var regionSize = Width * Height * 3;
-        RegionFrameBuffer = RegionFrameBuffer?.Length >= regionSize
-            ? RegionFrameBuffer
-            : new byte[regionSize];
-
-        for (var y = 0; y < Height; y++)
-        {
-            var srcOffset = (Y + y) * width * 3 + X * 3;
-            var destOffset = y * Width * 3;
-            Buffer.BlockCopy(FullScreenBuffer, srcOffset, RegionFrameBuffer, destOffset, Width * 3);
-        }
-
-        // Invoke the event
-        EventSource.InvokeFrameCaptured(FrameCaptureType.Region, RegionFrameBuffer);
+        SendRegion(data, width, height);
     }
 }
