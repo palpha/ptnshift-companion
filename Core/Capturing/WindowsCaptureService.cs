@@ -21,9 +21,7 @@ public class WindowsCaptureService(
             throw new InvalidOperationException("Configuration not set.");
         }
 
-        if (previousConfiguration.CaptureX != CurrentConfiguration.CaptureX
-            || previousConfiguration.CaptureY != CurrentConfiguration.CaptureY
-            || previousConfiguration.DisplayId != CurrentConfiguration.DisplayId)
+        if (previousConfiguration.DisplayId != CurrentConfiguration.DisplayId)
         {
             Streamer.Stop();
             Task.Run(async () =>
@@ -44,9 +42,22 @@ public class WindowsCaptureService(
                 }
             });
         }
-        else if (previousConfiguration.FrameRate != CurrentConfiguration.FrameRate)
+        else
         {
-            (Streamer as IFrameRateUpdater)?.SetFrameRate(CurrentConfiguration.FrameRate);
+            if (previousConfiguration.CaptureX != CurrentConfiguration.CaptureX
+                || previousConfiguration.CaptureY != CurrentConfiguration.CaptureY)
+            {
+                (Streamer as IRegionUpdater)?.SetRegion(
+                    CurrentConfiguration.CaptureX,
+                    CurrentConfiguration.CaptureY,
+                    CurrentConfiguration.Width,
+                    CurrentConfiguration.Height);
+            }
+
+            if (previousConfiguration.FrameRate != CurrentConfiguration.FrameRate)
+            {
+                (Streamer as IFrameRateUpdater)?.SetFrameRate(CurrentConfiguration.FrameRate);
+            }
         }
     }
 }

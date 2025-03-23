@@ -26,6 +26,11 @@ public interface IStreamer
     void Stop();
 }
 
+public interface IRegionUpdater
+{
+    void SetRegion(int x, int y, int width, int height);
+}
+
 public interface IFrameRateUpdater
 {
     void SetFrameRate(int frameRate);

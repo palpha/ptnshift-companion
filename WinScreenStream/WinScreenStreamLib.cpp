@@ -309,6 +309,9 @@ void StopCapture()
     gCurrentDisplayId = -1;
     gCallback = nullptr;
     gCallbackUserContext = nullptr;
+
+    gFrameBuffer.clear();
+    gFrameBuffer.shrink_to_fit();
 }
 
 // ------------------------------------------------------

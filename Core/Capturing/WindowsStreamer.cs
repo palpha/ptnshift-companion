@@ -7,7 +7,7 @@ using System;
 public class WindowsStreamer(
     ICaptureEventSource eventSource,
     TimeProvider timeProvider)
-    : IStreamer, IFrameRateUpdater, IDisposable
+    : IStreamer, IFrameRateUpdater, IRegionUpdater, IDisposable
 {
     private static WinScreenStreamLib.CaptureFrameCallback? CaptureCallback { get; set; }
 
@@ -55,6 +55,14 @@ public class WindowsStreamer(
     public void SetFrameRate(int frameRate)
     {
         WinScreenStreamLib.SetFrameRate(frameRate);
+    }
+
+    public void SetRegion(int x, int y, int width, int height)
+    {
+        X = x;
+        Y = y;
+        Width = width;
+        Height = height;
     }
 
     public void Stop()
