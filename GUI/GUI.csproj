@@ -27,7 +27,6 @@
       <EmbeddedResource Remove="Models\**" />
       <None Remove="Models\**" />
     </ItemGroup>
-
     <ItemGroup>
         <PackageReference Include="Avalonia" Version="11.2.5" />
         <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />

@@ -43,13 +43,15 @@
             </Grid>
             <Grid
                 RowDefinitions="Auto, Auto"
-                ColumnDefinitions="Auto, Auto, Auto, Auto"
+                ColumnDefinitions="Auto, Auto, Auto, Auto, Auto"
                 Margin="12">
 
                 <Grid.Styles>
-                    <Style
-                        Selector="TextBlock, TextBox, ComboBox">
+                    <Style Selector="TextBlock, TextBox, ComboBox, Button">
                         <Setter Property="Margin" Value="0,0,8,8" />
+                    </Style>
+                    <Style Selector="TextBox, ComboBox, Button">
+                        <Setter Property="Height" Value="35" />
                     </Style>
                     <Style Selector="TextBlock">
                         <Setter Property="HorizontalAlignment" Value="Center" />
@@ -57,6 +59,9 @@
                     <Style Selector="TextBox">
                         <Setter Property="VerticalContentAlignment" Value="Center" />
                         <Setter Property="Width" Value="50" />
+                    </Style>
+                    <Style Selector="Button#ArrowKeyEnabler:focus">
+                        <Setter Property="Background" Value="#ff08988a" />
                     </Style>
                 </Grid.Styles>
 
@@ -81,16 +86,26 @@
                 <TextBlock Grid.Row="0" Grid.Column="1"
                     Text="X" />
                 <TextBox Grid.Row="1" Grid.Column="1"
-                    Text="{Binding CaptureX}" />
+                    Text="{Binding CaptureX}">
+                </TextBox>
 
                 <TextBlock Grid.Row="0" Grid.Column="2"
                     Text="Y" />
                 <TextBox Grid.Row="1" Grid.Column="2"
                     Text="{Binding CaptureY}" />
 
-                <TextBlock Grid.Row="0" Grid.Column="3"
+                <Button Grid.Row="1" Grid.Column="3"
+                        Name="ArrowKeyEnabler"
+                        VerticalContentAlignment="Center"
+                        Padding="8,0,8,0"
+                        BorderBrush="Gray"
+                        BorderThickness="1">
+                    &#x2725;
+                </Button>
+
+                <TextBlock Grid.Row="0" Grid.Column="4"
                     Text="Capture FPS" />
-                <TextBox Grid.Row="1" Grid.Column="3"
+                <TextBox Grid.Row="1" Grid.Column="4"
                     Text="{Binding CaptureFrameRate}" />
             </Grid>
 

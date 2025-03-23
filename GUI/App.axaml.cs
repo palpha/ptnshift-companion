@@ -68,7 +68,8 @@ public class App : Application
 
             var provider = services.BuildServiceProvider();
             var model = provider.GetRequiredService<MainWindowViewModel>();
-            desktop.MainWindow = new MainWindow
+            var captureService = provider.GetRequiredService<ICaptureService>();
+            desktop.MainWindow = new MainWindow(captureService)
             {
                 DataContext = model,
                 CanResize = false,

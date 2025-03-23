@@ -348,7 +348,11 @@ public partial class MainWindowViewModel : ViewModelBase
         var token = cts.Token;
         Task.Run(async () =>
         {
-            await Task.Delay(delayMs, token);
+            if (delayMs > 0)
+            {
+                await Task.Delay(delayMs, token);
+            }
+
             if (token.IsCancellationRequested)
             {
                 return;
