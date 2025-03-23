@@ -499,3 +499,4 @@ App/publish.sh
 /publish.sh
 notarize-mac.sh
 sign-mac.sh
+Thumbs.db

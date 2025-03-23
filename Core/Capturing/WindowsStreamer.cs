@@ -95,7 +95,7 @@ public class WindowsStreamer(
         }
 
         // Convert the data to a managed byte array
-        var frameSize = width * height * 4;
+        var frameSize = width * height * 3;
         FullScreenBuffer = FullScreenBuffer?.Length >= frameSize
             ? FullScreenBuffer
             : new byte[frameSize];
@@ -110,18 +110,18 @@ public class WindowsStreamer(
         }
 
         // Take a portion of the frame as specified by X, Y, Width, Height
-        // assuming that the data is in BGRA8888 format
+        // assuming that the data is in 24-bit RGB format
         // (4 bytes per pixel, with the first byte being blue, second green, third red, and fourth alpha)
-        var regionSize = Width * Height * 4;
+        var regionSize = Width * Height * 3;
         RegionFrameBuffer = RegionFrameBuffer?.Length >= regionSize
             ? RegionFrameBuffer
             : new byte[regionSize];
 
         for (var y = 0; y < Height; y++)
         {
-            var srcOffset = (Y + y) * width * 4 + X * 4;
-            var destOffset = y * Width * 4;
-            Buffer.BlockCopy(FullScreenBuffer, srcOffset, RegionFrameBuffer, destOffset, Width * 4);
+            var srcOffset = (Y + y) * width * 3 + X * 3;
+            var destOffset = y * Width * 3;
+            Buffer.BlockCopy(FullScreenBuffer, srcOffset, RegionFrameBuffer, destOffset, Width * 3);
         }
 
         // Invoke the event

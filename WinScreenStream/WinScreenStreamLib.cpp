@@ -37,6 +37,9 @@ std::atomic<int> gFrameRate = 30;
 static CaptureFrameCallback gCallback = nullptr;
 static void* gCallbackUserContext = nullptr;
 
+// Frame buffer for RGB pixels
+static std::vector<unsigned char> gFrameBuffer;
+
 // ------------------------------------------------------
 // GetActiveDisplays
 // ------------------------------------------------------
@@ -173,11 +176,20 @@ static void CaptureThread(int displayId)
                 hr = gD3DContext->Map(stagingTex.Get(), 0, D3D11_MAP_READ, 0, &map);
                 if (SUCCEEDED(hr)) {
                     auto* pixels = reinterpret_cast<unsigned char*>(map.pData);
+                    for (int y = 0; y < ctx.height; ++y) {
+                        for (int x = 0; x < ctx.width; ++x) {
+                            int srcIndex = y * map.RowPitch + x * 4;
+                            int dstIndex = (y * ctx.width + x) * 3;
+                            gFrameBuffer[dstIndex + 0] = pixels[srcIndex + 2]; // R
+                            gFrameBuffer[dstIndex + 1] = pixels[srcIndex + 1]; // G
+                            gFrameBuffer[dstIndex + 2] = pixels[srcIndex + 0]; // B
+                        }
+                    }
                     // int pitch = map.RowPitch; // you can pass pitch to your callback if needed
 
                     // Call user callback
                     if (gCallback) {
-                        gCallback(pixels, ctx.width, ctx.height, gCallbackUserContext);
+                        gCallback(gFrameBuffer.data(), ctx.width, ctx.height, gCallbackUserContext);
                     }
                     gD3DContext->Unmap(stagingTex.Get(), 0);
                 }
@@ -248,6 +260,10 @@ int StartCapture(int displayId, int frameRate, CaptureFrameCallback callback, vo
         printf("DuplicateOutput failed: 0x%08X\n", hr);
         return -4;
     }
+
+    // Set up frame buffer
+    int bufferSize = gDisplays[displayId].width * gDisplays[displayId].height * 3;
+    gFrameBuffer.resize(bufferSize);
 
     // Now we can run the thread
     gCaptureRun = true;
