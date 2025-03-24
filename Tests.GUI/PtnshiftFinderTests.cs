@@ -16,7 +16,7 @@ public class PtnshiftFinderTests
     private PtnshiftFinder Sut { get; }
 
     public PtnshiftFinderTests() =>
-        Sut = new(Mock.Of<IDebugWriter>(), TimeProviderMock);
+        Sut = new(TimeProviderMock);
 
     [Fact]
     public void When_correct_region_captured()

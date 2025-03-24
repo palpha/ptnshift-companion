@@ -95,6 +95,7 @@ public partial class MainWindowViewModel : ViewModelBase
         IsDebug = AppConstants.IsDebug;
 
         PreviewRenderer.IsPreviewEnabled = IsPreviewEnabled;
+        PtnshiftFinder.IsEnabled = IsAutoLocateEnabled;
 
         DelayOperation(
             () => _ = ExecuteCheckPermissionAsync(),
@@ -163,6 +164,11 @@ public partial class MainWindowViewModel : ViewModelBase
             case nameof(IsPreviewEnabled):
             {
                 PreviewRenderer.IsPreviewEnabled = IsPreviewEnabled;
+                break;
+            }
+            case nameof(IsAutoLocateEnabled):
+            {
+                PtnshiftFinder.IsEnabled = IsAutoLocateEnabled;
                 break;
             }
         }

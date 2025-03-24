@@ -15,7 +15,7 @@ public class MacCaptureService(
         return await Streamer.CheckPermissionAsync();
     }
 
-    public override int GetConfigurationChangeDelayMs(CaptureConfiguration configuration) => 0;
+    public override int GetConfigurationChangeDelayMs(CaptureConfiguration configuration) => 200;
 
     protected override void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration)
     {

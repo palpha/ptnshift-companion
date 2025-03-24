@@ -98,7 +98,7 @@ public abstract class CaptureServiceBase(
 
     private void OnRegionFrameReceived(ReadOnlySpan<byte> frame)
     {
-        FrameCaptured?.Invoke(frame);
+        FrameCaptured.Invoke(frame);
         PtnshiftFinder.OnRegionCapture(frame);
     }
 
