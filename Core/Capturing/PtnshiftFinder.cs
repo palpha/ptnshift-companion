@@ -18,9 +18,9 @@ public class PtnshiftFinder : IPtnshiftFinder
 {
     // abaabbbaaaabbbbb, where a = 1c1c1cff and b = 2c2c2cff
 
-    private static readonly byte[] PixelA = [0x1C, 0x1C, 0x1C, 0xFF];
-    private static readonly byte[] PixelB = [0x2C, 0x2C, 0x2C, 0xFF];
-    private static readonly byte[] PixelC = [0x2B, 0x2B, 0x2B, 0xFF];
+    private static readonly byte[] PixelA = [0x1C, 0x1C, 0x1C];
+    private static readonly byte[] PixelB = [0x2C, 0x2C, 0x2C];
+    private static readonly byte[] PixelC = [0x2B, 0x2B, 0x2B];
 
     private static readonly byte[] ExpectedBytes = new[]
         {
