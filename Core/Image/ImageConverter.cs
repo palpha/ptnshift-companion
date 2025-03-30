@@ -62,10 +62,10 @@ public class ImageConverter : IImageConverter
             dstIndex += 128;
         }
     }
-    
+
     public void ConvertRgb24ToRgb16(ReadOnlySpan<byte> rgbBytes, Memory<byte> rgb16Bytes)
     {
-        ushort ConvertPixelToRgb16(byte r, byte g, byte b)
+        static ushort ConvertPixelToRgb16(byte r, byte g, byte b)
         {
             // convert pixel to RGB565
             return (ushort)(((r & 0xF8) << 8) | // Red (5 bits) → bits 11-15
@@ -112,7 +112,7 @@ public class ImageConverter : IImageConverter
             //
         }
     }
-    
+
     public SKData ConvertToData(ReadOnlySpan<byte> frame, int? width = null, int? height = null)
     {
         var bitmap = ConvertPixelBytesToBitmap(frame, SKColorType.Bgra8888, width, height);

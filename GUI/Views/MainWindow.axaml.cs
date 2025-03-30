@@ -13,14 +13,14 @@ public partial class MainWindow : Window
 {
     private ICaptureService CaptureService { get; }
 
-    private MainWindowViewModel ViewModel => (MainWindowViewModel)DataContext!;
+    private MainWindowViewModel ViewModel => (MainWindowViewModel) DataContext!;
 
     private Point dragStartPosition;
 
     private DragOutlineWindow? DragOutline { get; set; }
     private bool IsDragging { get; set; }
-    private double CaptureStartX { get; set; }
-    private double CaptureStartY { get; set; }
+    private int CaptureStartX { get; set; }
+    private int CaptureStartY { get; set; }
     private CancellationTokenSource? DebounceCts { get; set; }
 
     public MainWindow(ICaptureService captureService)
@@ -99,10 +99,11 @@ public partial class MainWindow : Window
         CaptureStartX = cfg.CaptureX;
         CaptureStartY = cfg.CaptureY;
 
-        DragOutline = new DragOutlineWindow
+        DragOutline = new()
         {
             Width = ViewModel.CaptureConfiguration.Width + 6,
-            Height = ViewModel.CaptureConfiguration.Height + 6
+            Height = ViewModel.CaptureConfiguration.Height + 6,
+            Position = new(CaptureStartX, CaptureStartY)
         };
         DragOutline.Show();
     }
@@ -120,7 +121,7 @@ public partial class MainWindow : Window
         var newLeft = Bounds.X + CaptureStartX + totalDx - 3; // 3 is the border width
         var newTop = Bounds.Y + CaptureStartY + totalDy - 3;
 
-        DragOutline.Position = new PixelPoint((int)newLeft, (int)newTop);
+        DragOutline.Position = new PixelPoint((int) newLeft, (int) newTop);
 
         // Cancel existing debounce timer and start a fresh one
         DebounceCts?.Cancel();
@@ -182,16 +183,13 @@ public partial class MainWindow : Window
         var cfg = ViewModel.CaptureConfiguration;
         var newCfg = cfg with
         {
-            CaptureX = (int)(CaptureStartX + totalDx),
-            CaptureY = (int)(CaptureStartY + totalDy)
+            CaptureX = (int) (CaptureStartX + totalDx),
+            CaptureY = (int) (CaptureStartY + totalDy)
         };
 
         return (totalDx, totalDy, newCfg);
     }
 
     private void UpdateConfiguration(CaptureConfiguration cfg) =>
-        Dispatcher.UIThread.Post(() =>
-        {
-            ViewModel.UpdateCaptureConfiguration(cfg);
-        });
+        Dispatcher.UIThread.Post(() => ViewModel.UpdateCaptureConfiguration(cfg));
 }
