@@ -7,13 +7,13 @@
     <key>CFBundleIdentifier</key>
     <string>org.bergius.ptnshiftcompanion</string>
     <key>CFBundleName</key>
-    <string>Ptnshift Companion</string>
+    <string>PTNSHIFT Companion</string>
     <key>CFBundleVersion</key>
     <string>0.0.9</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.12</string>
     <key>CFBundleExecutable</key>
-    <string>PtnshiftCompanion</string>
+    <string>PTNSHIFT Companion</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundlePackageType</key>

@@ -9,12 +9,12 @@ if [ -z "$version" ]; then
 fi
 
 version_folder="publish/$version"
-dmg_path="publish/PtnshiftCompanion_${version}.dmg"
+dmg_path="publish/PTNSHIFTCompanion_${version}.dmg"
 
 if [ ! -f $dmg_path ]; then
   mkdir -p $version_folder
-  mv publish/PtnshiftCompanion.app $version_folder
-  hdiutil create -srcfolder $version_folder -format UDZO -volname "Ptnshift Companion $version" $dmg_path
+  mv "publish/PTNSHIFT Companion.app" $version_folder
+  hdiutil create -srcfolder $version_folder -format UDZO -volname "PTNSHIFT Companion $version" $dmg_path
 else
   echo "DMG already exists at: $dmg_path"
 fi

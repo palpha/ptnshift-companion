@@ -9,13 +9,13 @@ if [ -z "$version" ]; then
 fi
 
 # see if dmg exists
-dmg_path="publish/PtnshiftCompanion_${version}.dmg"
+dmg_path="publish/PTNSHIFTCompanion_${version}.dmg"
 
 if [ ! -f $dmg_path ]; then
   echo "Error: No DMG found at $dmg_path"
   exit 1
 fi
 
-aws s3 cp $dmg_path s3://bergius.org/ptnshift/PtnshiftCompanion_${version}.dmg --profile olaglig
+aws s3 cp $dmg_path s3://bergius.org/ptnshift/PTNSHIFTCompanion_${version}.dmg --profile olaglig
 
-echo "DMG uploaded to S3: https://bergius.org/ptnshift/PtnshiftCompanion_${version}.dmg"
+echo "DMG uploaded to S3: https://bergius.org/ptnshift/PTNSHIFTCompanion_${version}.dmg"
