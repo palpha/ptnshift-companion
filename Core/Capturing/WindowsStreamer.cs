@@ -1,5 +1,6 @@
 using System.Buffers;
 using System.Runtime.InteropServices;
+using Core.Image;
 
 namespace Core.Capturing;
 
@@ -7,6 +8,8 @@ using System;
 
 public class WindowsStreamer(
     ICaptureEventSource eventSource,
+    IDisplayService displayService,
+    IImageConverter imageConverter,
     TimeProvider timeProvider)
     : IStreamer, IFrameRateUpdater, IRegionUpdater, IDisposable
 {
@@ -14,10 +17,12 @@ public class WindowsStreamer(
 
     private int X { get; set; }
     private int Y { get; set; }
-    private int Width { get; set; }
-    private int Height { get; set; }
+    private int EffectiveWidth { get; set; }
+    private int EffectiveHeight { get; set; }
     private long LastFullScreenTimestamp { get; set; }
 
+    private IDisplayService DisplayService { get; } = displayService;
+    private IImageConverter ImageConverter { get; } = imageConverter;
     private TimeProvider TimeProvider { get; } = timeProvider;
 
     public ICaptureEventSource EventSource { get; } = eventSource;
@@ -37,10 +42,13 @@ public class WindowsStreamer(
             throw new InvalidOperationException("Capture already in progress.");
         }
 
+        var display = DisplayService.GetDisplay(displayId)
+            ?? throw new ArgumentException("Invalid display id", nameof(displayId));
+
         X = x;
         Y = y;
-        Width = width;
-        Height = height;
+        EffectiveWidth = width;
+        EffectiveHeight = height;
 
         CaptureCallback = OnFrame;
 
@@ -62,8 +70,8 @@ public class WindowsStreamer(
     {
         X = x;
         Y = y;
-        Width = width;
-        Height = height;
+        EffectiveWidth = width;
+        EffectiveHeight = height;
     }
 
     public void Stop()
@@ -92,9 +100,6 @@ public class WindowsStreamer(
         GC.SuppressFinalize(this);
     }
 
-    private byte[]? FullScreenBuffer { get; set; }
-    private byte[]? RegionFrameBuffer { get; set; }
-
     private void SendFullScreen(nint data, int width, int height)
     {
         var frameSize = width * height * 3;
@@ -111,14 +116,16 @@ public class WindowsStreamer(
         }
     }
 
-    private void SendRegion(nint data, int width, int height)
+    private void SendRegion(nint data, int width)
     {
-        var rowSize = Width * 3; // 3 bytes per pixel
-        var bufferSize = rowSize * Height;
+        var rowSize = EffectiveWidth * 3;
+        var bufferSize = rowSize * EffectiveHeight;
         var buffer = ArrayPool<byte>.Shared.Rent(bufferSize);
+        const int ResizeBufferSize = 960 * 161 * 3;
+        var resizeBuffer = ArrayPool<byte>.Shared.Rent(ResizeBufferSize);
         try
         {
-            for (var row = 0; row < Height; row++)
+            for (var row = 0; row < EffectiveHeight; row++)
             {
                 // Calculate where to read from in the native data
                 var srcOffset = (Y + row) * width * 3 + X * 3;
@@ -129,11 +136,16 @@ public class WindowsStreamer(
                 Marshal.Copy(IntPtr.Add(data, srcOffset), buffer, dstOffset, rowSize);
             }
 
-            EventSource.InvokeFrameCaptured(FrameCaptureType.Region, buffer);
+            ImageConverter.ScaleCpu(
+                buffer, EffectiveWidth, EffectiveHeight,
+                resizeBuffer, 960, 161);
+
+            EventSource.InvokeFrameCaptured(FrameCaptureType.Region, resizeBuffer.AsSpan(0, ResizeBufferSize));
         }
         finally
         {
             ArrayPool<byte>.Shared.Return(buffer);
+            ArrayPool<byte>.Shared.Return(resizeBuffer);
         }
     }
 
@@ -151,6 +163,6 @@ public class WindowsStreamer(
             SendFullScreen(data, width, height);
         }
 
-        SendRegion(data, width, height);
+        SendRegion(data, width);
     }
 }

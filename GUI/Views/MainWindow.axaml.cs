@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -12,25 +13,30 @@ namespace GUI.Views;
 public partial class MainWindow : Window
 {
     private ICaptureService CaptureService { get; }
+    private IDisplayService DisplayService { get; }
 
     private MainWindowViewModel ViewModel => (MainWindowViewModel) DataContext!;
 
-    private Point dragStartPosition;
+    private PixelPoint previousPointerPosition;
 
     private DragOutlineWindow? DragOutline { get; set; }
     private bool IsDragging { get; set; }
-    private int CaptureStartX { get; set; }
-    private int CaptureStartY { get; set; }
+    private DisplayInfo? SelectedDisplay { get; set; }
     private CancellationTokenSource? DebounceCts { get; set; }
 
-    public MainWindow(ICaptureService captureService)
+    public MainWindow(
+        ICaptureService captureService,
+        IDisplayService displayService)
     {
         CaptureService = captureService;
+        DisplayService = displayService;
+        DisplayService.Screens = Screens;
+
         InitializeComponent();
 
-        ArrowKeyEnabler.AddHandler(PointerPressedEvent, ArrowKeyEnabler_PointerPressed, handledEventsToo: true);
-        ArrowKeyEnabler.AddHandler(PointerMovedEvent, ArrowKeyEnabler_PointerMoved, handledEventsToo: true);
-        ArrowKeyEnabler.AddHandler(PointerReleasedEvent, ArrowKeyEnabler_PointerReleased, handledEventsToo: true);
+        PreviewImage.AddHandler(PointerPressedEvent, DragPointerPressed, handledEventsToo: true);
+        PreviewImage.AddHandler(PointerMovedEvent, DragPointerMoved, handledEventsToo: true);
+        PreviewImage.AddHandler(PointerReleasedEvent, DragPointerReleased, handledEventsToo: true);
     }
 
     protected override void OnKeyDown(KeyEventArgs e)
@@ -43,8 +49,8 @@ public partial class MainWindow : Window
             return;
         }
 
-        if ((e.KeyModifiers.HasFlag(KeyModifiers.Control) == false
-             && (focused is not Button b || b != ArrowKeyEnabler))
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Control) == false
+            && (focused is not Button b || b != ArrowKeyEnabler)
             || focused is TextBox)
         {
             return;
@@ -88,106 +94,143 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ArrowKeyEnabler_PointerPressed(object? sender, PointerPressedEventArgs e)
+    private int Scaled(int pixels) => (int) (pixels * SelectedDisplay?.ScalingFactor ?? 1 + 0.5);
+
+    private void DragPointerPressed(object? sender, PointerPressedEventArgs e)
     {
+        Cursor = new Cursor(StandardCursorType.DragMove);
+
         IsDragging = true;
         ViewModel.IsAutoLocateEnabled = false;
-        dragStartPosition = e.GetPosition(this);
 
-        // Remember the config's starting coords
+        // The user's current capture config
         var cfg = ViewModel.CaptureConfiguration;
-        CaptureStartX = cfg.CaptureX;
-        CaptureStartY = cfg.CaptureY;
 
-        DragOutline = new()
+        // Find which display we're clamping to
+        SelectedDisplay =
+            DisplayService.GetDisplay(cfg.DisplayId)
+            ?? throw new InvalidOperationException("Display not selected");
+
+        // Make the drag overlay at the current capture location (minus border, plus discarded first row)
+        var dragWindowLeft = SelectedDisplay.BoundsX + cfg.CaptureX - Scaled(3);
+        var dragWindowTop = SelectedDisplay.BoundsY + cfg.CaptureY - Scaled(3 - 1);
+
+        DragOutline?.Close();
+        DragOutline = new DragOutlineWindow
         {
-            Width = ViewModel.CaptureConfiguration.Width + 6,
-            Height = ViewModel.CaptureConfiguration.Height + 6,
-            Position = new(CaptureStartX, CaptureStartY)
+            Width = 960 + 6,
+            Height = 160 + 6,
+            Position = new PixelPoint(dragWindowLeft, dragWindowTop)
         };
         DragOutline.Show();
+
+        // Record the pointer's position in *screen* coordinates
+        // so we can do incremental deltas from it later
+        previousPointerPosition = PixelPoint.FromPoint(e.GetPosition(null), SelectedDisplay.ScalingFactor);
     }
 
-    private void ArrowKeyEnabler_PointerMoved(object? sender, PointerEventArgs e)
+    private void DragPointerMoved(object? sender, PointerEventArgs e)
     {
-        if (IsDragging == false || DragOutline == null)
+        if (IsDragging == false || DragOutline == null || SelectedDisplay == null)
         {
             return;
         }
 
-        var (totalDx, totalDy, newCfg) = CalculatePosition(e);
+        // Current pointer position in screen coords
+        var pointerPosition = PixelPoint.FromPoint(e.GetPosition(null), SelectedDisplay.ScalingFactor);
 
-        // Move the outline (this is immediate so user sees it)
-        var newLeft = Bounds.X + CaptureStartX + totalDx - 3; // 3 is the border width
-        var newTop = Bounds.Y + CaptureStartY + totalDy - 3;
+        // Incremental delta from the last pointer position
+        var dx = pointerPosition.X - previousPointerPosition.X;
+        var dy = pointerPosition.Y - previousPointerPosition.Y;
 
-        DragOutline.Position = new PixelPoint((int) newLeft, (int) newTop);
+        // If shift is held, multiply
+        if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
+        {
+            dx *= 2;
+            dy *= 2;
+        }
 
-        // Cancel existing debounce timer and start a fresh one
+        // New window position
+        var dragOutlinePosition = DragOutline.Position;
+        var newLeft = dragOutlinePosition.X + dx;
+        var newTop = dragOutlinePosition.Y + dy;
+
+        // Clamp to display so the user can't drag partially off the chosen display
+        int Clamp(int value, int min, int max) =>
+            Math.Clamp(value, min, Math.Max(min, max));
+
+        newLeft = Clamp(newLeft,
+            SelectedDisplay.BoundsX - Scaled(3),
+            SelectedDisplay.BoundsX + SelectedDisplay.Width
+            - Scaled((int) DragOutline.Width - 3));
+        newTop = Clamp(newTop,
+            SelectedDisplay.BoundsY - Scaled(3),
+            SelectedDisplay.BoundsY + SelectedDisplay.Height
+            - Scaled((int) DragOutline.Height - 3));
+
+        // Move the overlay
+        DragOutline.Position = new PixelPoint(newLeft, newTop);
+
+        // Abort pending configuration changes
         DebounceCts?.Cancel();
-        DebounceCts = new CancellationTokenSource();
-        var token = DebounceCts.Token;
 
-        var delayMs = CaptureService.GetConfigurationChangeDelayMs(newCfg);
+        var cfg = GetConfigurationFromDragOutline();
+
+        var delayMs = CaptureService.GetConfigurationChangeDelayMs(cfg);
         if (delayMs > 0)
         {
-            // Schedule the config update n ms from now
+            DebounceCts = new CancellationTokenSource();
+            var token = DebounceCts.Token;
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await Task.Delay(delayMs, token);
-
-                    // Only runs if no more movement in last 500 ms
-                    UpdateConfiguration(newCfg);
+                    UpdateConfiguration(cfg);
                 }
                 catch (TaskCanceledException)
                 {
-                    //
                 }
             }, token);
         }
         else
         {
-            UpdateConfiguration(newCfg);
+            UpdateConfiguration(cfg);
         }
+
+        previousPointerPosition = pointerPosition;
     }
 
-    private void ArrowKeyEnabler_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    private void DragPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        IsDragging = false;
+        Cursor = new Cursor(StandardCursorType.Arrow);
 
-        // Immediately apply the final offset, in case pointer is released
+        IsDragging = false;
         DebounceCts?.Cancel();
         DebounceCts = null;
 
-        if (DragOutline != null)
-        {
-            // Compute final offset
-            var (_, _, newCfg) = CalculatePosition(e);
-            UpdateConfiguration(newCfg);
-        }
+        var cfg = GetConfigurationFromDragOutline();
+        UpdateConfiguration(cfg);
 
-        // Close outline
         DragOutline?.Close();
         DragOutline = null;
     }
 
-    private (double TotalDx, double TotalDy, CaptureConfiguration Cfg) CalculatePosition(PointerEventArgs e)
+    private CaptureConfiguration GetConfigurationFromDragOutline()
     {
-        // Calculate total drag offset from the initial press
-        var currentPosition = e.GetPosition(this);
-        var totalDx = currentPosition.X - dragStartPosition.X;
-        var totalDy = currentPosition.Y - dragStartPosition.Y;
-
-        var cfg = ViewModel.CaptureConfiguration;
-        var newCfg = cfg with
+        if (DragOutline == null || SelectedDisplay == null)
         {
-            CaptureX = (int) (CaptureStartX + totalDx),
-            CaptureY = (int) (CaptureStartY + totalDy)
-        };
+            return ViewModel.CaptureConfiguration;
+        }
 
-        return (totalDx, totalDy, newCfg);
+        // Capture coords based on the drag window's current position,
+        // relative to the display origin (plus border width, minus discarded first row)
+        var currentPosition = DragOutline.Position;
+        return ViewModel.CaptureConfiguration with
+        {
+            CaptureX = currentPosition.X - SelectedDisplay.BoundsX + Scaled(3),
+            CaptureY = currentPosition.Y - SelectedDisplay.BoundsY + Scaled(3 - 1)
+        };
     }
 
     private void UpdateConfiguration(CaptureConfiguration cfg) =>

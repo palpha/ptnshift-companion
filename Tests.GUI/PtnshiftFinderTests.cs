@@ -12,11 +12,11 @@ namespace Tests.GUI;
 public class PtnshiftFinderTests
 {
     private FakeTimeProvider TimeProviderMock { get; } = new();
-    
+
     private PtnshiftFinder Sut { get; }
 
     public PtnshiftFinderTests() =>
-        Sut = new(Mock.Of<IDebugWriter>(), TimeProviderMock);
+        Sut = new(TimeProviderMock);
 
     [Fact]
     public void When_correct_region_captured()
@@ -56,7 +56,7 @@ public class PtnshiftFinderTests
         result.X.ShouldBe(500);
         result.Y.ShouldBe(500);
     }
-    
+
     [Fact]
     public void When_invalid_region_captured_and_no_hit()
     {

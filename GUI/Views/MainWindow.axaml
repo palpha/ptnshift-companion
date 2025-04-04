@@ -23,6 +23,7 @@
             </Panel.Effect>
             <Grid>
                 <Image Source="{Binding ImageSource}"
+                    Name="PreviewImage"
                     Width="960" Height="160"
                     HorizontalAlignment="Left"
                     VerticalAlignment="Top"

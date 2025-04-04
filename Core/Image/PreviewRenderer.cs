@@ -79,8 +79,6 @@ public class PreviewRenderer : IPreviewRenderer
                     rgbaFrame.AsSpan(0, PreviewLength).CopyTo(dstSpan);
                 }
 
-                ArrayPool<byte>.Shared.Return(rgbaFrame);
-
                 // Swap buffers
                 (ImageSource, PreviewBitmap) = (PreviewBitmap, ImageSource);
 

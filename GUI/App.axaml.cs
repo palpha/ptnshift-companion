@@ -50,26 +50,28 @@ public class App : Application
                 .AddTransient<IImageSaver, ImageSaver>()
                 .AddTransient<ILibUsbWrapper, DefaultLibUsbWrapper>()
                 .AddTransient<ISettingsManager, SettingsManager>()
-                .AddTransient<IDisplayService, DisplayService>()
                 .AddTransient<MainWindowViewModel>();
 
             if (OperatingSystem.IsMacOS())
             {
                 services
                     .AddSingleton<IStreamer, MacStreamer>()
-                    .AddSingleton<ICaptureService, MacCaptureService>();
+                    .AddSingleton<ICaptureService, MacCaptureService>()
+                    .AddSingleton<IDisplayService, MacDisplayService>();
             }
             else if (OperatingSystem.IsWindows())
             {
                 services
                     .AddSingleton<IStreamer, WindowsStreamer>()
-                    .AddSingleton<ICaptureService, WindowsCaptureService>();
+                    .AddSingleton<ICaptureService, WindowsCaptureService>()
+                    .AddSingleton<IDisplayService, WindowsDisplayService>();
             }
 
             var provider = services.BuildServiceProvider();
             var model = provider.GetRequiredService<MainWindowViewModel>();
             var captureService = provider.GetRequiredService<ICaptureService>();
-            desktop.MainWindow = new MainWindow(captureService)
+            var displayService = provider.GetRequiredService<IDisplayService>();
+            desktop.MainWindow = new MainWindow(captureService, displayService)
             {
                 DataContext = model,
                 CanResize = false,
