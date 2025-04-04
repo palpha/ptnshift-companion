@@ -18,7 +18,6 @@ public static class WinScreenStreamLib
     [DllImport(LibraryName, CharSet = CharSet.Ansi)]
     internal static extern void StopCapture();
 
-    // Cleanup
     [DllImport(LibraryName, CharSet = CharSet.Ansi)]
     internal static extern void Cleanup();
 
@@ -35,6 +34,12 @@ public static class WinScreenStreamLib
 
         [MarshalAs(UnmanagedType.U1)]
         public bool isPrimary;
+
+        public float dpiX;
+        public float dpiY;
+
+        public int left;
+        public int top;
     }
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]

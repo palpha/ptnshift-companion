@@ -4,11 +4,15 @@
 #include <dxgi1_2.h>
 #include <d3d11.h>
 #include <wrl/client.h>
+#include <shcore.h>
+#include <ShellScalingAPI.h>
 #include <thread>
 #include <atomic>
 #include <vector>
 #include <cstdio>
 #include <chrono>
+
+#pragma comment(lib, "shcore.lib")
 
 using Microsoft::WRL::ComPtr;
 
@@ -63,6 +67,12 @@ int GetActiveDisplays(DisplayInfo* infos, int maxCount)
         while (adapter->EnumOutputs(outputIndex, &output) != DXGI_ERROR_NOT_FOUND) {
             DXGI_OUTPUT_DESC desc;
             output->GetDesc(&desc);
+            UINT dpiX = 96, dpiY = 96; // default to 96 if call fails
+            if (SUCCEEDED(GetDpiForMonitor(desc.Monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY))) {
+                // success
+            }
+            float fDpiX = static_cast<float>(dpiX);
+            float fDpiY = static_cast<float>(dpiY);
 
             if (desc.AttachedToDesktop) {
                 DisplayContext ctx;
@@ -90,10 +100,14 @@ int GetActiveDisplays(DisplayInfo* infos, int maxCount)
                     infos[displayCount].width = ctx.width;
                     infos[displayCount].height = ctx.height;
                     infos[displayCount].isPrimary = ctx.isPrimary;
+                    infos[displayCount].dpiX = fDpiX;
+                    infos[displayCount].dpiY = fDpiY;
+                    infos[displayCount].left = desc.DesktopCoordinates.left;
+                    infos[displayCount].top = desc.DesktopCoordinates.top;
                 }
 
-                printf("Display %d: %s (%dx%d) %s\n",
-                    displayCount, ctx.name, ctx.width, ctx.height,
+                printf("Display %d: %s (%dx%d) DPI=%.1fx%.1f %s\n",
+                    displayCount, ctx.name, ctx.width, ctx.height, fDpiX, fDpiY,
                     ctx.isPrimary ? "[PRIMARY]" : "");
 
                 displayCount++;
