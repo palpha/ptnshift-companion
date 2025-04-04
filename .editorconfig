@@ -107,17 +107,23 @@ dotnet_style_require_accessibility_modifiers = for_non_interface_members:suggest
 fsharp_keep_if_then_in_same_line = true
 
 # ReSharper properties
+resharper_align_multiline_binary_expressions_chain = false
 resharper_autodetect_indent_settings = true
+resharper_braces_for_ifelse = required
+resharper_csharp_wrap_before_binary_opsign = true
 resharper_formatter_off_tag = @formatter:off
 resharper_formatter_on_tag = @formatter:on
 resharper_formatter_tags_enabled = true
+resharper_instance_members_qualify_declared_in = base_class
 resharper_method_or_operator_body = block_body
 resharper_object_creation_when_type_not_evident = target_typed
 charset = utf-8
 end_of_line = lf
+resharper_parentheses_redundancy_style = remove
 resharper_space_within_single_line_array_initializer_braces = false
 resharper_use_heuristics_for_body_style = true
 resharper_use_indent_from_vs = false
+resharper_wrap_chained_binary_expressions = chop_if_long
 trim_trailing_whitespace = true
 insert_final_newline = true
 indent_style = space
