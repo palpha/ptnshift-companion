@@ -11,7 +11,7 @@ public interface IFrameDebugger
 public class FrameDebugger : IFrameDebugger
 {
     private Lock FrameDumpLock { get; } = new();
-    private byte[] LastFrameData { get; } = new byte[960 * 161 * 4];
+    private byte[] LastFrameData { get; } = new byte[960 * 161 * 3];
 
     public event Action<string> FrameDumpWritten = delegate { };
 

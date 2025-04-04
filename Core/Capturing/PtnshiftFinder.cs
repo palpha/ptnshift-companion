@@ -41,7 +41,6 @@ public class PtnshiftFinder : IPtnshiftFinder
         .SelectMany(x => x).ToArray();
 
 
-    private IDebugWriter DebugWriter { get; }
     private TimeProvider TimeProvider { get; }
     private ITimer LocationCheckTimer { get; }
 
@@ -50,11 +49,8 @@ public class PtnshiftFinder : IPtnshiftFinder
     // Internal for testing purposes
     internal long LastLocationCheckTimestamp { get; private set; }
 
-    public PtnshiftFinder(
-        IDebugWriter debugWriter,
-        TimeProvider timeProvider)
+    public PtnshiftFinder(TimeProvider timeProvider)
     {
-        DebugWriter = debugWriter;
         TimeProvider = timeProvider;
         LocationCheckTimer =
             TimeProvider.CreateTimer(

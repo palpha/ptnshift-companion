@@ -28,7 +28,7 @@ public class FrameRateCounter : IFrameRateReporter
         CaptureService.FrameCaptured += OnFrame;
     }
 
-    private void OnFrame(ReadOnlySpan<byte> obj)
+    private void OnFrame(ReadOnlySpan<byte> _)
     {
         FrameCount++;
 
