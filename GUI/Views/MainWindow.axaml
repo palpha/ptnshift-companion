@@ -40,6 +40,7 @@
                     OnContent=""
                     OffContent=""
                     Margin="0,12,12,0"
+                    IsVisible="{Binding IsDebug}"
                     IsChecked="{Binding IsDevMode}" />
             </Grid>
             <Grid
