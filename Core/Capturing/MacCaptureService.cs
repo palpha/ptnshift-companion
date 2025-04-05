@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Capturing;
 
@@ -19,11 +19,6 @@ public class MacCaptureService(
 
     protected override void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration)
     {
-        if (previousConfiguration.Equals(CurrentConfiguration) || IsCapturing == false)
-        {
-            return;
-        }
-
         Streamer.Stop();
         StartStreamer();
     }

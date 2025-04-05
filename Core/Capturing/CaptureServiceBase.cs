@@ -37,7 +37,7 @@ public abstract class CaptureServiceBase(
             DisplayWidth = display?.Width ?? 0;
         }
 
-        if (previousConfiguration != null)
+        if (Streamer.IsCapturing && previousConfiguration != null && previousConfiguration != CurrentConfiguration)
         {
             UpdateStreamerConfiguration(previousConfiguration);
         }
