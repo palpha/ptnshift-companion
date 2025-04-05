@@ -136,9 +136,16 @@ public class WindowsStreamer(
                 Marshal.Copy(IntPtr.Add(data, srcOffset), buffer, dstOffset, rowSize);
             }
 
-            ImageConverter.ScaleCpu(
-                buffer, EffectiveWidth, EffectiveHeight,
-                resizeBuffer, 960, 161);
+            if (EffectiveWidth == 960 && EffectiveHeight == 161)
+            {
+                (buffer, resizeBuffer) = (resizeBuffer, buffer);
+            }
+            else
+            {
+                ImageConverter.ScaleCpu(
+                    buffer, EffectiveWidth, EffectiveHeight,
+                    resizeBuffer, 960, 161);
+            }
 
             EventSource.InvokeFrameCaptured(FrameCaptureType.Region, resizeBuffer.AsSpan(0, ResizeBufferSize));
         }
