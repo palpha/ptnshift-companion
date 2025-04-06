@@ -1,84 +1,96 @@
 #!/bin/bash
 set -e
 
-files=$(
-  aws s3api list-objects \
-    --bucket "bergius.org" \
-    --prefix "ptnshift/" \
-    --profile olaglig \
-  | jq -r '.Contents[].Key' \
-  | grep -E 'dmg|zip' \
-  | sed 's/ptnshift\///'
-)
-
-files_arr=()
-for file in $files; do
-  version=$(echo "$file" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
-  files_arr+=("$version#$file")
+dry_run=false
+for arg in "$@"; do
+  if [[ $arg == "--dry-run" ]]; then
+    dry_run=true
+  fi
 done
 
 sorted_files=$(
-  printf "%s\n" "${files_arr[@]}" \
-  | sort -t# -k1,1V \
-  | cut -d# -f2
+  aws s3api list-objects \
+    --bucket "bergius.org" \
+    --prefix "ptnshift/" \
+    --query 'Contents[?ends_with(Key, `.dmg`) || ends_with(Key, `.zip`)]' \
+    --profile olaglig |
+    jq -r '[.[]
+      | select(.Key | test("_[0-9]+\\.[0-9]+\\.[0-9]+\\.(dmg|zip)$"))
+      | {Key, LastModified, version: (.Key | capture("_(?<ver>[0-9]+\\.[0-9]+\\.[0-9]+)") | .ver)}
+    ]
+    | sort_by(.version | split(".") | map(tonumber))
+    | reverse
+    | .[] | "\(.Key)\t\(.LastModified)"'
 )
 
 windows_x64_files_markup=""
 windows_arm64_files_markup=""
 mac_files_markup=""
 
-file_template="<li><a href=\"https://bergius.org/ptnshift/%s\">%s</a></li>"
-for file in $sorted_files; do
-  if [[ $file == *dmg ]] || [[ $file == *macOS* ]]; then
-    mac_files_markup="$mac_files_markup$(printf "$file_template" "$file" "$file")"
-  elif [[ $file == *win-x64* ]]; then
-    windows_x64_files_markup="$windows_x64_files_markup$(printf "$file_template" "$file" "$file")"
-  elif [[ $file == *win-arm64* ]]; then
-    windows_arm64_files_markup="$windows_arm64_files_markup$(printf "$file_template" "$file" "$file")"
+file_template="<li><a href=\"https://bergius.org/%s\">%s</a> <span class=\"last-modified\">(%s)</span></li>"
+
+while IFS=$'\t' read -r file timestamp; do
+  pretty_time=$(gdate -u -d "$timestamp" +"%Y-%m-%d %H:%M")
+  filename="${file#ptnshift/}"
+
+  if [[ "$file" == *dmg ]] || [[ "$file" == *macOS* ]]; then
+    mac_files_markup="${mac_files_markup}$(printf "$file_template" "$file" "$filename" "$pretty_time")"
+  elif [[ "$file" == *win-x64* ]]; then
+    windows_x64_files_markup="${windows_x64_files_markup}$(printf "$file_template" "$file" "$filename" "$pretty_time")"
+  elif [[ "$file" == *win-arm64* ]]; then
+    windows_arm64_files_markup="${windows_arm64_files_markup}$(printf "$file_template" "$file" "$filename" "$pretty_time")"
   fi
-done
+done <<<"$sorted_files"
 
 # limit width of the markup and center that on screen
 
-cat > index.html <<- EOM
+cat >index.html <<-EOM
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Ptnshift Companion Downloads</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 2em;
-            max-width: 800px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        h1 {
-            color: #333;
-        }
-        h2 {
-            color: #666;
-        }
-        ul {
-            list-style-type: none;
-            padding: 0;
-            margin-bottom: 2em;
-        }
-        li {
-            padding: 0.5em;
-            border-bottom: 1px solid #ccc;
-        }
-        a {
-            color: #007bff;
-            text-decoration: none;
-        }
-        a:hover {
-            text-decoration: underline;
-        }
-    </style>
+  <title>Ptnshift Companion Downloads</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    h1 {
+      color: #333;
+    }
+    h2 {
+      color: #666;
+    }
+    ul {
+      list-style-type: none;
+      padding: 0;
+      margin-bottom: 2em;
+    }
+    li {
+      padding: 0.5em;
+      border-bottom: 1px solid #ccc;
+    }
+    li:first-child a {
+      font-weight: bold;
+    }
+    a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .last-modified {
+      font-size: 0.9em;
+      color: #999;
+    }
+  </style>
+  <link rel="icon" type="image/png" href="favicon.png">
 </head>
 <body>
-    <h1>Ptnshift Companion</h1>
+    <h1>PTNSHIFT Companion</h1>
 
     <h2>macOS</h2>
     <ul>
@@ -110,5 +122,10 @@ cat > index.html <<- EOM
 </html>
 EOM
 
-aws s3 cp index.html s3://bergius.org/ptnshift/index.html --profile olaglig
-rm index.html
+# if not dry_run, upload the file to S3
+if [ "$dry_run" = false ]; then
+  aws s3 cp index.html s3://bergius.org/ptnshift/index.html --profile olaglig
+  rm index.html
+else
+  echo "Dry run: Not uploading index.html to S3."
+fi
