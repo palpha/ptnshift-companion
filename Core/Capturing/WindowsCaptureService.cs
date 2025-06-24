@@ -9,8 +9,15 @@ public class WindowsCaptureService(
     IDisplayService displayService,
     IPtnshiftFinder ptnshiftFinder,
     IDiagnosticOutputRenderer diagnosticOutputRenderer,
-    ILogger<WindowsCaptureService> logger)
-    : CaptureServiceBase(streamer, displayService, ptnshiftFinder, diagnosticOutputRenderer, logger)
+    ILogger<WindowsCaptureService> logger,
+    TimeProvider timeProvider)
+    : CaptureServiceBase(
+        streamer,
+        displayService,
+        ptnshiftFinder,
+        diagnosticOutputRenderer,
+        logger,
+        timeProvider)
 {
     public override Task<bool> CheckCapturePermissionAsync() =>
         // On Windows, usually no special permission needed for direct duplication.

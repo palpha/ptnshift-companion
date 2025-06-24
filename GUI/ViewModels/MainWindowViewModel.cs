@@ -27,6 +27,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private bool isPreviewEnabled = true;
     [ObservableProperty] private bool isDevMode;
     [ObservableProperty] private bool isDebug;
+    [ObservableProperty] private bool isVerboseOutput;
     [ObservableProperty] private double measuredFrameRate;
     [ObservableProperty] private string lastFrameDumpFilename = "";
     [ObservableProperty] private ObservableCollection<DisplayInfo>? availableDisplays;
@@ -55,6 +56,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private IPush2Usb Push2Usb { get; }
     private IPreviewRenderer PreviewRenderer { get; }
     private IFrameDebugger FrameDebugger { get; }
+    private IDiagnosticOutputRenderer DiagnosticOutputRenderer { get; }
 
     private AppSettings? AppSettings { get; set; }
 
@@ -67,7 +69,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IPush2Usb push2Usb,
         IPreviewRenderer previewRenderer,
         IFrameDebugger frameDebugger,
-        IFrameRateReporter frameRateReporter)
+        IFrameRateReporter frameRateReporter,
+        IDiagnosticOutputRenderer diagnosticOutputRenderer)
     {
         Logger = logger;
         DisplayService = displayService;
@@ -77,6 +80,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Push2Usb = push2Usb;
         PreviewRenderer = previewRenderer;
         FrameDebugger = frameDebugger;
+        DiagnosticOutputRenderer = diagnosticOutputRenderer;
 
         Logger.LogInformation("View model created, subscribing to events");
 
@@ -164,6 +168,14 @@ public partial class MainWindowViewModel : ViewModelBase
                 PreviewRenderer.IsPreviewEnabled = IsPreviewEnabled;
                 break;
             }
+            case nameof(IsVerboseOutput):
+            {
+                DiagnosticOutputRenderer.Mode =
+                    IsVerboseOutput
+                        ? DiagnosticOutputMode.Verbose
+                        : DiagnosticOutputMode.Normal;
+                break;
+            }
         }
     }
 
@@ -244,6 +256,7 @@ public partial class MainWindowViewModel : ViewModelBase
             CaptureFrameRate = AppSettings.CaptureFrameRate.ToString();
             IsPreviewEnabled = AppSettings.IsPreviewEnabled;
             IsAutoLocateEnabled = AppSettings.IsAutoLocateEnabled;
+            IsVerboseOutput = AppSettings.IsVerboseOutput;
         });
     }
 
@@ -254,7 +267,8 @@ public partial class MainWindowViewModel : ViewModelBase
             CaptureConfiguration.CaptureY,
             CaptureConfiguration.FrameRate,
             IsPreviewEnabled,
-            IsAutoLocateEnabled));
+            IsAutoLocateEnabled,
+            IsVerboseOutput));
 
     private void OnFrameRateChanged(double frameRate)
     {

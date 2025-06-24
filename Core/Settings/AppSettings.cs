@@ -6,4 +6,5 @@ public record AppSettings(
     int CaptureY = 1000,
     int CaptureFrameRate = 30,
     bool IsPreviewEnabled = true,
-    bool IsAutoLocateEnabled = true);
+    bool IsAutoLocateEnabled = true,
+    bool IsVerboseOutput = false);

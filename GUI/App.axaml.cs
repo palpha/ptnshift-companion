@@ -53,7 +53,8 @@ public class App : Application
                 .AddSingleton<IPush2Usb, Push2Usb>()
                 .AddSingleton<IFrameDebugger, FrameDebugger>()
                 .AddSingleton<IFrameRateReporter, FrameRateCounter>()
-                .AddSingleton<IPreviewRenderer, PreviewRenderer>();
+                .AddSingleton<IPreviewRenderer, PreviewRenderer>()
+                .AddSingleton<IDiagnosticOutputRenderer, DiagnosticOutputRenderer>();
 
             // Stateless or single-consumer services
             services

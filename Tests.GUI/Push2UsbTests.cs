@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics.CodeAnalysis;
 using Core.Capturing;
+using Core.Diagnostics;
 using Core.Image;
 using Core.Usb;
 using Microsoft.Extensions.Time.Testing;
@@ -13,8 +14,6 @@ namespace Tests.GUI;
 [SuppressMessage("ReSharper", "LocalVariableHidesMember")]
 public class Push2UsbTests
 {
-    private static ushort VendorId => 0x2982;
-    private static ushort ProductId => 0x1967;
     private static byte Interface => 0;
     private static int InitResult => 0;
     private static IntPtr UsbContext => 234;
@@ -27,8 +26,7 @@ public class Push2UsbTests
     private Mock<IStreamer> StreamerMock { get; } = new(MockBehavior.Strict);
     private EventSourceMock EventSourceMock { get; } = new();
     private Mock<ILibUsbWrapper> LibUsbWrapperMock { get; } = new(MockBehavior.Strict);
-
-    private Push2Usb Sut { get; }
+    private Mock<IDiagnosticOutputRenderer> DiagnosticOutputRendererMock { get; } = new(MockBehavior.Strict);
 
     private IReturnsResult<ILibUsbWrapper> InitSetup { get; }
     private IReturnsResult<ILibUsbWrapper> OpenDeviceWithVidPidSetup { get; }
@@ -38,6 +36,8 @@ public class Push2UsbTests
     private ISetup<ILibUsbWrapper> CloseSetup { get; }
     private ISetup<ILibUsbWrapper> ExitSetup { get; }
 
+    private Push2Usb Sut { get; }
+
     public Push2UsbTests()
     {
         InitSetup =
@@ -46,7 +46,10 @@ public class Push2UsbTests
                 .Returns(() => (InitResult, UsbContext));
         OpenDeviceWithVidPidSetup =
             LibUsbWrapperMock
-                .Setup(x => x.OpenDeviceWithVidPid(UsbContext, VendorId, ProductId))
+                .Setup(x => x.OpenDeviceWithVidPid(
+                    UsbContext,
+                    PushIdentity.Push2.VendorId,
+                    PushIdentity.Push2.ProductId))
                 .Returns(() => PushDevice);
         ClaimInterfaceSetup =
             LibUsbWrapperMock
@@ -65,6 +68,8 @@ public class Push2UsbTests
         StreamerMock
             .Setup(x => x.EventSource)
             .Returns(() => EventSourceMock);
+        DiagnosticOutputRendererMock.Setup(
+            x => x.SetText(It.IsAny<Subsystem>(), It.IsAny<string>(), It.IsAny<bool?>()));
 
         // The most common situation
         InitSetup.Verifiable(Times.Once);
@@ -80,12 +85,18 @@ public class Push2UsbTests
             StreamerMock.Object,
             new ImageConverter(),
             LibUsbWrapperMock.Object,
-            new FakeTimeProvider());
+            new FakeTimeProvider(),
+            DiagnosticOutputRendererMock.Object);
     }
 
     [Fact]
     public void When_connecting()
     {
+        DiagnosticOutputRendererMock.Reset();
+        DiagnosticOutputRendererMock
+            .Setup(x => x.SetText(Subsystem.FrameTransmission, "Connected", true))
+            .Verifiable(Times.Once);
+
         var result = Sut.Connect();
 
         result.ShouldBeTrue();
@@ -94,13 +105,18 @@ public class Push2UsbTests
         LibUsbWrapperMock.VerifyNoOtherCalls();
         StreamerMock.VerifyAll();
         StreamerMock.VerifyNoOtherCalls();
+        DiagnosticOutputRendererMock.VerifyAll();
     }
 
     [Fact]
     public void When_connecting_fails()
     {
         LibUsbWrapperMock
-            .Setup(x => x.OpenDeviceWithVidPid(UsbContext, VendorId, ProductId))
+            .Setup(x => x.OpenDeviceWithVidPid(UsbContext, PushIdentity.Push2.VendorId, PushIdentity.Push2.ProductId))
+            .Returns(IntPtr.Zero)
+            .Verifiable(Times.Once);
+        LibUsbWrapperMock
+            .Setup(x => x.OpenDeviceWithVidPid(UsbContext, PushIdentity.Push3.VendorId, PushIdentity.Push3.ProductId))
             .Returns(IntPtr.Zero)
             .Verifiable(Times.Once);
         ClaimInterfaceSetup.Verifiable(Times.Never);
@@ -257,6 +273,13 @@ public class Push2UsbTests
             .Returns(0)
             .Verifiable(Times.AtLeastOnce);
 
+        DiagnosticOutputRendererMock.Reset();
+        DiagnosticOutputRendererMock
+            .Setup(x => x.SetText(Subsystem.FrameTransmission, "Connected", true))
+            .Verifiable(Times.Once);
+        DiagnosticOutputRendererMock
+            .Setup(x => x.SetText(Subsystem.FrameTransmission, "Streaming", null))
+            .Verifiable(Times.Once);
         Sut.Connect();
         EventSourceMock.InvokeFrameCaptured(FrameCaptureType.Region, new(bgraBytes));
 
@@ -264,5 +287,6 @@ public class Push2UsbTests
         frameBytes[0][..8].ShouldBe([7, 244, 7, 248, 7, 244, 7, 248]); // Source: trust me bro
         LibUsbWrapperMock.VerifyAll();
         LibUsbWrapperMock.VerifyNoOtherCalls();
+        DiagnosticOutputRendererMock.VerifyAll();
     }
 }

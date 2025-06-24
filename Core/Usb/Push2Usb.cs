@@ -46,6 +46,8 @@ public sealed class Push2Usb : IPush2Usb
     private long LastFrameTimestamp { get; set; }
     private ITimer FrameCheckTimer { get; set; }
 
+    private IDiagnosticOutputRenderer DiagnosticOutputRenderer { get; }
+
     public bool IsConnected { get; private set; }
 
     public Push2Usb(
@@ -53,13 +55,17 @@ public sealed class Push2Usb : IPush2Usb
         IStreamer streamer,
         IImageConverter imageConverter,
         ILibUsbWrapper libUsbWrapper,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IDiagnosticOutputRenderer diagnosticOutputRenderer)
     {
         Logger = logger;
         Streamer = streamer;
         ImageConverter = imageConverter;
         LibUsbWrapper = libUsbWrapper;
         TimeProvider = timeProvider;
+        DiagnosticOutputRenderer = diagnosticOutputRenderer;
+
+        DiagnosticOutputRenderer.OverlayChanged += OnOverlayChanged;
 
         DoMeasure = Logger.IsEnabled(LogLevel.Trace);
         if (DoMeasure)
@@ -128,6 +134,7 @@ public sealed class Push2Usb : IPush2Usb
 
         Streamer.EventSource.RegionFrameCaptured += OnRegionFrameReceived;
 
+        DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, "Connected", alwaysDisplay: true);
         return IsConnected = true;
     }
 
@@ -144,10 +151,31 @@ public sealed class Push2Usb : IPush2Usb
     {
         FrameCheckTimer = TimeProvider.CreateTimer(_ =>
         {
-            if (IsConnected && SeenFrames > 0 && HasReceivedRecentFrame() == false)
+            try
+            {
+                if (IsConnected == false || HasReceivedRecentFrame())
                 {
+                    return;
+                }
+
+                if (SeenFrames > 0)
+                {
+                    if (DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, "Resending") == false)
+                    {
+                        // If the text was not updated, it means the overlay is not visible
                         SendSendBuffer();
                     }
+
+                    return;
+                }
+
+                DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, "Connected", true);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Error in frame check timer");
+                DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, "Error");
+            }
         }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
@@ -190,6 +218,7 @@ public sealed class Push2Usb : IPush2Usb
     public void SendFrame(ReadOnlySpan<byte> rgbFrame)
     {
         SeenFrames++;
+        DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, "Streaming");
 
         if (SkippedFrames % 1000 == 1)
         {
@@ -248,6 +277,36 @@ public sealed class Push2Usb : IPush2Usb
         BlendOverlay(CroppedFrameBuffer);
         ImageConverter.ConvertRgb24ToRgb16(CroppedFrameBuffer, ConversionBuffer);
         (SendBuffer, ConversionBuffer) = (ConversionBuffer, SendBuffer);
+    }
+
+    private void BlendOverlay(byte[] rgbFrame)
+    {
+        var overlayBitmap = DiagnosticOutputRenderer.DiagnosticOverlayBitmap;
+        if (overlayBitmap == null || overlayBitmap.Bytes == null)
+        {
+            return;
+        }
+        var diagnosticOverlayBgra = overlayBitmap.Bytes;
+        for (var y = 0; y < OverlayHeight; y++)
+        {
+            for (var x = 0; x < OverlayWidth; x++)
+            {
+                var overlayIdx = (y * OverlayWidth + x) * 4;
+                var olB = diagnosticOverlayBgra[overlayIdx + 0];
+                var olG = diagnosticOverlayBgra[overlayIdx + 1];
+                var olR = diagnosticOverlayBgra[overlayIdx + 2];
+                var olA = diagnosticOverlayBgra[overlayIdx + 3];
+                if (olA == 0)
+                {
+                    continue;
+                }
+                var rgbIdx = (y * OverlayWidth + x) * 3;
+                var alpha = olA / 255f;
+                rgbFrame[rgbIdx + 0] = (byte) (olR * alpha + rgbFrame[rgbIdx + 0] * (1 - alpha));
+                rgbFrame[rgbIdx + 1] = (byte) (olG * alpha + rgbFrame[rgbIdx + 1] * (1 - alpha));
+                rgbFrame[rgbIdx + 2] = (byte) (olB * alpha + rgbFrame[rgbIdx + 2] * (1 - alpha));
+            }
+        }
     }
 
     private void SendSendBuffer()

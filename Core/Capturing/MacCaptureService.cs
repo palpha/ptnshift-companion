@@ -9,8 +9,15 @@ public class MacCaptureService(
     IDisplayService displayService,
     IPtnshiftFinder ptnshiftFinder,
     IDiagnosticOutputRenderer diagnosticOutputRenderer,
-    ILogger<CaptureServiceBase> logger)
-    : CaptureServiceBase(streamer, displayService, ptnshiftFinder, diagnosticOutputRenderer, logger)
+    ILogger<CaptureServiceBase> logger,
+    TimeProvider timeProvider)
+    : CaptureServiceBase(
+        streamer,
+        displayService,
+        ptnshiftFinder,
+        diagnosticOutputRenderer,
+        logger,
+        timeProvider)
 {
     public override async Task<bool> CheckCapturePermissionAsync()
     {

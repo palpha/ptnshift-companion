@@ -1,25 +1,40 @@
+using System.Diagnostics.CodeAnalysis;
 using Core.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Core.Capturing;
 
-public abstract class CaptureServiceBase(
-    IStreamer streamer,
-    IDisplayService displayService,
-    IPtnshiftFinder ptnshiftFinder,
-    IDiagnosticOutputRenderer diagnosticOutputRenderer,
-    ILogger<CaptureServiceBase> logger)
-    : ICaptureService
+public abstract class CaptureServiceBase : ICaptureService
 {
-    protected IStreamer Streamer { get; } = streamer;
+    protected CaptureServiceBase(IStreamer streamer,
+        IDisplayService displayService,
+        IPtnshiftFinder ptnshiftFinder,
+        IDiagnosticOutputRenderer diagnosticOutputRenderer,
+        ILogger<CaptureServiceBase> logger,
+        TimeProvider timeProvider)
+    {
+        Streamer = streamer;
+        DisplayService = displayService;
+        PtnshiftFinder = ptnshiftFinder;
+        DiagnosticOutputRenderer = diagnosticOutputRenderer;
+        Logger = logger;
+        TimeProvider = timeProvider;
 
-    private IDisplayService DisplayService { get; } = displayService;
-    private IPtnshiftFinder PtnshiftFinder { get; } = ptnshiftFinder;
-    private IDiagnosticOutputRenderer DiagnosticOutputRenderer { get; } = diagnosticOutputRenderer;
+        StartCaptureMonitoring();
+    }
+
+    protected IStreamer Streamer { get; }
+
+    private IDisplayService DisplayService { get; }
+    private IPtnshiftFinder PtnshiftFinder { get; }
+    private IDiagnosticOutputRenderer DiagnosticOutputRenderer { get; }
 
     private int DisplayWidth { get; set; }
+    private ITimer CaptureMonitoringTimer { get; set; }
 
-    protected ILogger<CaptureServiceBase> Logger { get; } = logger;
+    protected ILogger<CaptureServiceBase> Logger { get; }
+    private TimeProvider TimeProvider { get; }
+
     protected CaptureConfiguration? CurrentConfiguration { get; private set; }
 
     public event Action<ReadOnlySpan<byte>> FrameCaptured = delegate { };
@@ -100,7 +115,7 @@ public abstract class CaptureServiceBase(
     protected void StopStreamer()
     {
         Streamer.Stop();
-        DiagnosticOutputRenderer.SetText(Subsystem.PixelCapture, "");
+        DiagnosticOutputRenderer.SetText(Subsystem.PixelCapture, "Not capturing");
     }
 
     protected void StartStreamer()
@@ -127,6 +142,16 @@ public abstract class CaptureServiceBase(
             Logger.LogError(ex, "Unable to start capture");
             throw;
         }
+    }
+
+    [MemberNotNull(nameof(CaptureMonitoringTimer))]
+    private void StartCaptureMonitoring()
+    {
+        CaptureMonitoringTimer = TimeProvider.CreateTimer(_ =>
+        {
+            var label = IsCapturing ? "Capturing" : "Not capturing";
+            DiagnosticOutputRenderer.SetText(Subsystem.PixelCapture, label);
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
     private void OnRegionFrameReceived(ReadOnlySpan<byte> frame)

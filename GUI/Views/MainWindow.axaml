@@ -113,7 +113,7 @@
 
             <Grid
                 RowDefinitions="Auto, Auto"
-                ColumnDefinitions="Auto, Auto, Auto, Auto"
+                ColumnDefinitions="Auto, Auto, Auto, Auto, Auto"
                 Margin="12">
 
                 <Grid.Styles>
@@ -161,6 +161,14 @@
                 <ToggleSwitch Grid.Row="1" Grid.Column="3"
                     IsChecked="{Binding IsConnected}"
                     Command="{Binding ExecuteToggleConnectionAsync}"
+                    OnContent=""
+                    OffContent="" />
+
+                <TextBlock Grid.Row="0" Grid.Column="4"
+                    HorizontalAlignment="Left"
+                    Text="Verbose" />
+                <ToggleSwitch Grid.Row="1" Grid.Column="4"
+                    IsChecked="{Binding IsVerboseOutput}"
                     OnContent=""
                     OffContent="" />
             </Grid>
