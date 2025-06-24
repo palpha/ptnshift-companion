@@ -35,16 +35,15 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private DisplayInfo? selectedDisplayInfo;
     [ObservableProperty] private string? captureX = "533";
     [ObservableProperty] private string? captureY = "794";
-    [ObservableProperty] private string? captureFrameRate = "30";
-    [ObservableProperty] private int captureXParsed = 533;
-    [ObservableProperty] private int captureYParsed = 794;
-    [ObservableProperty] private int captureFrameRateParsed = 30;
-    [ObservableProperty] private CaptureConfiguration captureConfiguration = new(0, 533, 794, 960, 161, 25);
+    [ObservableProperty] private string? captureFrameRate = "24";
+    [ObservableProperty] private string? previewFrameRate = "12";
+    [ObservableProperty] private CaptureConfiguration captureConfiguration = new(0, 533, 794, 960, 161, 24, 12);
     [ObservableProperty] private WriteableBitmap? imageSource;
 
     private CancellationTokenSource propertyUpdateCts = new();
     private CancellationTokenSource cfgUpdateCts = new();
     private CancellationTokenSource connectionCts = new();
+    private CancellationTokenSource previewFrameRateCts = new();
 
     // ReSharper disable once FieldCanBeMadeReadOnly.Local
     private CancellationTokenSource permissionCheckCts = new();
@@ -164,6 +163,15 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 break;
             }
+            case nameof(PreviewFrameRate):
+            {
+                if (int.TryParse(PreviewFrameRate, out var x) && x != PreviewRenderer.FrameRate)
+                {
+                    DelayOperation(() => { PreviewRenderer.FrameRate = x; }, 200, ref previewFrameRateCts);
+                }
+
+                break;
+            }
             case nameof(IsPreviewEnabled):
             {
                 PreviewRenderer.IsPreviewEnabled = IsPreviewEnabled;
@@ -231,6 +239,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 CaptureX = CaptureConfiguration.CaptureX.ToString();
                 CaptureY = CaptureConfiguration.CaptureY.ToString();
                 CaptureFrameRate = CaptureConfiguration.FrameRate.ToString();
+                PreviewFrameRate = CaptureConfiguration.PreviewFrameRate.ToString();
             }),
             100, ref propertyUpdateCts);
 
@@ -255,6 +264,7 @@ public partial class MainWindowViewModel : ViewModelBase
             CaptureX = AppSettings.CaptureX.ToString();
             CaptureY = AppSettings.CaptureY.ToString();
             CaptureFrameRate = AppSettings.CaptureFrameRate.ToString();
+            PreviewFrameRate = AppSettings.PreviewFrameRate.ToString();
             IsPreviewEnabled = AppSettings.IsPreviewEnabled;
             IsAutoLocateEnabled = AppSettings.IsAutoLocateEnabled;
             IsVerboseOutput = AppSettings.IsVerboseOutput;
@@ -267,6 +277,7 @@ public partial class MainWindowViewModel : ViewModelBase
             CaptureConfiguration.CaptureX,
             CaptureConfiguration.CaptureY,
             CaptureConfiguration.FrameRate,
+            CaptureConfiguration.PreviewFrameRate,
             IsPreviewEnabled,
             IsAutoLocateEnabled,
             IsVerboseOutput));

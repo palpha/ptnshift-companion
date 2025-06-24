@@ -8,7 +8,8 @@ public record CaptureConfiguration(
     int CaptureY,
     int Width,
     int Height,
-    int FrameRate)
+    int FrameRate,
+    int PreviewFrameRate)
 {
     private bool TryGetFirstValid(
         IReadOnlyCollection<DisplayInfo> availableDisplays,
@@ -53,7 +54,8 @@ public record CaptureConfiguration(
             CaptureY = Math.Clamp(CaptureY, 0, maxY),
             Width = effectiveWidth,
             Height = effectiveHeight,
-            FrameRate = Math.Clamp(FrameRate, 1, 100)
+            FrameRate = Math.Clamp(FrameRate, 1, 100),
+            PreviewFrameRate = Math.Clamp(PreviewFrameRate, 1, 100)
         };
 
         return true;
@@ -89,5 +91,6 @@ public record CaptureConfiguration(
         && CaptureY >= 0
         && Width > 0
         && Height > 0
-        && FrameRate > 0;
+        && FrameRate > 0
+        && PreviewFrameRate > 0;
 }

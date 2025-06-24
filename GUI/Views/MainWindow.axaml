@@ -45,7 +45,7 @@
             </Grid>
             <Grid
                 RowDefinitions="Auto, Auto"
-                ColumnDefinitions="Auto, Auto, Auto, Auto, Auto"
+                ColumnDefinitions="Auto, Auto, Auto, Auto, Auto, Auto"
                 Margin="12">
 
                 <Grid.Styles>
@@ -109,6 +109,11 @@
                     Text="Capture FPS" />
                 <TextBox Grid.Row="1" Grid.Column="4"
                     Text="{Binding CaptureFrameRate}" />
+
+                <TextBlock Grid.Row="0" Grid.Column="5"
+                    Text="Preview FPS" />
+                <TextBox Grid.Row="1" Grid.Column="5"
+                    Text="{Binding PreviewFrameRate}" />
             </Grid>
 
             <Grid

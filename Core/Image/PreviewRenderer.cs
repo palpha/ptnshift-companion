@@ -1,3 +1,4 @@
+using System;
 using System.Buffers;
 using Avalonia.Media.Imaging;
 using Core.Capturing;
@@ -9,27 +10,31 @@ public interface IPreviewRenderer
 {
     event Action<WriteableBitmap> PreviewRendered;
     bool IsPreviewEnabled { get; set; }
+    int FrameRate { get; set; }
 }
 
 public class PreviewRenderer : IPreviewRenderer
 {
     private ILogger<PreviewRenderer> Logger { get; }
+    private TimeProvider TimeProvider { get; }
 
     private Lock BitmapLock { get; } = new();
 
     private WriteableBitmap? ImageSource { get; set; }
     private WriteableBitmap? PreviewBitmap { get; set; }
+    private DateTimeOffset LastPreviewTime { get; set; } = DateTimeOffset.MinValue;
 
     public event Action<WriteableBitmap> PreviewRendered = delegate { };
-
     public bool IsPreviewEnabled { get; set; }
+    public int FrameRate { get; set; } = 24;
 
     public PreviewRenderer(
         ICaptureService captureService,
-        ILogger<PreviewRenderer> logger)
+        ILogger<PreviewRenderer> logger,
+        TimeProvider timeProvider)
     {
         Logger = logger;
-
+        TimeProvider = timeProvider;
         captureService.FrameCaptured += OnFrameReceived;
     }
 
@@ -39,6 +44,19 @@ public class PreviewRenderer : IPreviewRenderer
         {
             // Ignore frames if preview is not requested
             return;
+        }
+
+        // Throttle to FrameRate
+        if (FrameRate > 0)
+        {
+            var now = TimeProvider.GetUtcNow();
+            var minInterval = TimeSpan.FromSeconds(1.0 / FrameRate);
+            if (now - LastPreviewTime < minInterval)
+            {
+                return;
+            }
+
+            LastPreviewTime = now;
         }
 
         const int Width = 960;
