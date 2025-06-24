@@ -1,6 +1,7 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 
 [assembly: InternalsVisibleTo("Tests.GUI")]
 
@@ -8,9 +9,15 @@ namespace Core.Capturing;
 
 public class MacStreamer(
     ICaptureEventSource eventSource,
-    IDisplayService displayService) : IStreamer, IDisposable
+    IDisplayService displayService,
+    ILogger<MacStreamer> logger) : IStreamer, IDisposable
 {
     private IDisplayService DisplayService { get; } = displayService;
+    private ILogger<MacStreamer> Logger { get; } = logger;
+
+    private Lock FrameLock { get; } = new();
+
+    private int LoggedFrameFailures { get; set; }
 
     public ICaptureEventSource EventSource { get; } = eventSource;
 
@@ -23,21 +30,25 @@ public class MacStreamer(
         return LibScreenStream.IsCapturePermissionGranted();
     }
 
-    private Lock FrameLock { get; } = new();
-
     private static LibScreenStream.CaptureCallback? RegionCaptureCallback { get; set; }
     private static LibScreenStream.CaptureCallback? FullScreenCaptureCallback { get; set; }
 
     public void Start(int displayId, int x, int y, int width, int height, int frameRate)
     {
+        Logger.LogInformation(
+            "Starting capture at {X}, {Y}, {Width}x{Height}, {FrameRate} FPS",
+            x, y, width, height, frameRate);
+
         if (IsCapturing)
         {
+            Logger.LogWarning("Capture is already running");
             throw new InvalidOperationException("Capture already in progress.");
         }
 
         var display = DisplayService.GetDisplay(displayId);
         if (display == null)
         {
+            Logger.LogWarning("Display {DisplayId} not found", displayId);
             throw new InvalidOperationException("Display could not be found.");
         }
 
@@ -56,10 +67,13 @@ public class MacStreamer(
             FullScreenCaptureCallback);
         if (result != 0)
         {
+            Logger.LogError("Failed to start capture, HRESULT {HResult}", result);
             throw new InvalidOperationException($"Failed to start capture: {result}");
         }
 
         IsCapturing = true;
+
+        Logger.LogInformation("Started capture");
     }
 
     private Dictionary<FrameCaptureType, byte[]> Buffers { get; } = new();
@@ -92,9 +106,15 @@ public class MacStreamer(
                     Marshal.Copy(data, frameBuffer, 0, length);
                     EventSource.InvokeFrameCaptured(type, frameBuffer.AsSpan(0, length));
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    //
+                    if (LoggedFrameFailures++ % 300 == 0)
+                    {
+                        Logger.LogError(
+                            ex,
+                            "Failed to capture frame ({Count} failures)",
+                            LoggedFrameFailures);
+                    }
                 }
             }
         };
@@ -102,8 +122,12 @@ public class MacStreamer(
 
     public void Stop()
     {
+        Logger.LogInformation("Stopping capture");
+
         if (Buffers.Count > 0)
         {
+            Logger.LogInformation("Returning buffers");
+
             foreach (var buffer in Buffers.Values)
             {
                 ArrayPool<byte>.Shared.Return(buffer);
@@ -114,16 +138,19 @@ public class MacStreamer(
 
         if (IsCapturing == false)
         {
+            Logger.LogInformation("Was not capturing");
             return;
         }
 
         var result = LibScreenStream.StopCapture();
         if (result != 0)
         {
-            //
+            Logger.LogWarning("Non-zero result when stopping capture: {HResult}", result);
         }
 
         IsCapturing = false;
+
+        Logger.LogInformation("Stopped capture");
     }
 
     public void Dispose()

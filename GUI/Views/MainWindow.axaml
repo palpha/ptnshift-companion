@@ -170,17 +170,6 @@
                     <Button Content="Dump last frame" Command="{Binding ExecuteInspectLastFrameAsync}" />
                     <Button Content="Open frame dump file" Command="{Binding ExecuteOpenLastFrameDump}" />
                 </WrapPanel>
-                <TextBox Text="{Binding DebugOutput}"
-                    FontSize="17"
-                    MinHeight="99"
-                    Width="960"
-                    VerticalAlignment="Top"
-                    HorizontalAlignment="Center"
-                    Foreground="DarkGray"
-                    IsReadOnly="True"
-                    TextWrapping="Wrap"
-                    MaxLines="20">
-                </TextBox>
             </StackPanel>
         </StackPanel>
 

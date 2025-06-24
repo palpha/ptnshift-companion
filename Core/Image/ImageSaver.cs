@@ -1,4 +1,5 @@
 using Core.Diagnostics;
+using Microsoft.Extensions.Logging;
 using SkiaSharp;
 
 namespace Core.Image;
@@ -8,12 +9,14 @@ public interface IImageSaver
     void SavePngToDisk(SKData data, string? filename = null);
 }
 
-public class ImageSaver(IDebugWriter debugWriter) : IImageSaver
+public class ImageSaver(ILogger<ImageSaver> logger) : IImageSaver
 {
-    private IDebugWriter DebugWriter { get; } = debugWriter;
+    private ILogger<ImageSaver> Logger { get; } = logger;
 
     public void SavePngToDisk(SKData data, string? filename = null)
     {
+        Logger.LogInformation("Saving frame");
+
         if (filename == null)
         {
             var tmpDir = Path.GetTempPath();
@@ -22,6 +25,7 @@ public class ImageSaver(IDebugWriter debugWriter) : IImageSaver
 
         using var fs = new FileStream(filename, FileMode.Create);
         data.SaveTo(fs);
-        DebugWriter.Write($"Frame saved: {filename}\n");
+
+        Logger.LogInformation("Frame saved to {Path}", filename);
     }
 }

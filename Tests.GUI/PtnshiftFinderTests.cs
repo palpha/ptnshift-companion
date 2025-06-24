@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Core.Capturing;
 using Core.Diagnostics;
 using Core.Image;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using Shouldly;
@@ -83,7 +84,7 @@ public class PtnshiftFinderTests
             var bytes = ImageGenerator.GenerateTestBitmap(width, height, posX, posY);
             var converter = new ImageConverter();
             var data = converter.ConvertToData(bytes, width, height);
-            var saver = new ImageSaver(Mock.Of<IDebugWriter>());
+            var saver = new ImageSaver(Mock.Of<ILogger<ImageSaver>>());
             var testProjectDirectory = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "..");
             saver.SavePngToDisk(data, Path.Combine(testProjectDirectory, filename));
         }

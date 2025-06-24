@@ -2,14 +2,17 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Core.Capturing;
+using Core.Diagnostics;
 using Core.Image;
 using Microsoft.Extensions.Logging;
 
 namespace Core.Usb;
 
-public class Push2Usb : IPush2Usb
+public sealed class Push2Usb : IPush2Usb
 {
-    private const int ChunkSize = 512 * 128; // 40960; // 512 * 64; 
+    private const int ChunkSize = 512 * 128; // 40960; // 512 * 64;
+    private const int OverlayWidth = 960;
+    private const int OverlayHeight = 160;
 
     internal static ReadOnlyMemory<byte> FrameHeader { get; } = new([
         0xFF, 0xCC, 0xAA, 0x88,
@@ -28,9 +31,13 @@ public class Push2Usb : IPush2Usb
 
     private Lock SyncRoot { get; } = new();
     private Lock BufferLock { get; } = new();
+    private byte[] CroppedFrameBuffer { get; } = new byte[960 * 160 * 3];
+    private byte[] LastCroppedRgbFrame { get; } = new byte[960 * 160 * 3];
+    private volatile bool isFrameBeingSent;
+
+    // Send buffer and conversion buffer are swapped to prevent buffer overrun
     private byte[] SendBuffer { get; set; } = new byte[2048 * 160];
     private byte[] ConversionBuffer { get; set; } = new byte[2048 * 160];
-    private volatile bool isFrameBeingSent;
 
     private IntPtr UsbContext { get; set; }
     private IntPtr PushDevice { get; set; }
@@ -100,9 +107,13 @@ public class Push2Usb : IPush2Usb
                 Logger.LogError("Unable to find Push 2/3. Is it connected?");
                 return false;
             }
-        }
 
-        Logger.LogInformation("Push 2 connected.");
+            Logger.LogInformation("Push 3 connected");
+        }
+        else
+        {
+            Logger.LogInformation("Push 2 connected");
+        }
 
         // Claim the interface for display communication
         var claimResult = LibUsbWrapper.ClaimInterface(PushDevice, Identity.DisplayInterface);
@@ -134,9 +145,9 @@ public class Push2Usb : IPush2Usb
         FrameCheckTimer = TimeProvider.CreateTimer(_ =>
         {
             if (IsConnected && SeenFrames > 0 && HasReceivedRecentFrame() == false)
-            {
-                SendSendBuffer();
-            }
+                {
+                        SendSendBuffer();
+                    }
         }, null, TimeSpan.Zero, TimeSpan.FromSeconds(1));
     }
 
@@ -169,7 +180,7 @@ public class Push2Usb : IPush2Usb
         }
 
         LibUsbWrapper.Exit(UsbContext);
-        Logger.LogInformation("Disconnected from Push 2.");
+        Logger.LogInformation("Disconnected from Push 2");
         IsConnected = false;
     }
 
@@ -182,7 +193,7 @@ public class Push2Usb : IPush2Usb
 
         if (SkippedFrames % 1000 == 1)
         {
-            Logger.LogInformation("Skipped {SkippedFrames} frames out of {SeenFrames}.", SkippedFrames, SeenFrames);
+            Logger.LogInformation("Skipped {SkippedFrames} frames out of {SeenFrames}", SkippedFrames, SeenFrames);
         }
 
         if (isFrameBeingSent)
@@ -191,7 +202,7 @@ public class Push2Usb : IPush2Usb
             Logger.LogDebug("Skipping frame to prevent buffer overrun");
             return;
         }
-        
+
         ObjectDisposedException.ThrowIf(IsDisposed, this);
 
         if (ConsecutiveErrors >= 3)
@@ -205,10 +216,9 @@ public class Push2Usb : IPush2Usb
             lock (BufferLock)
             {
                 Debug.Assert(rgbFrame.Length >= 960 * 161 * 3);
-
                 var croppedFrame = rgbFrame[(960 * 3)..];
-                ImageConverter.ConvertRgb24ToRgb16(croppedFrame, ConversionBuffer);
-                (SendBuffer, ConversionBuffer) = (ConversionBuffer, SendBuffer);
+                croppedFrame.CopyTo(LastCroppedRgbFrame);
+                ConvertBuffer(croppedFrame);
             }
 
             SendSendBuffer();
@@ -217,22 +227,59 @@ public class Push2Usb : IPush2Usb
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Could not send frame.");
+            Logger.LogError(ex, "Could not send frame");
             ConsecutiveErrors++;
         }
     }
 
+    private void OnOverlayChanged(object? sender, EventArgs e)
+    {
+        lock (BufferLock)
+        {
+            ConvertBuffer(LastCroppedRgbFrame.AsSpan());
+        }
+
+        SendSendBuffer();
+    }
+
+    private void ConvertBuffer(ReadOnlySpan<byte> rgbFrame)
+    {
+        rgbFrame.CopyTo(CroppedFrameBuffer);
+        BlendOverlay(CroppedFrameBuffer);
+        ImageConverter.ConvertRgb24ToRgb16(CroppedFrameBuffer, ConversionBuffer);
+        (SendBuffer, ConversionBuffer) = (ConversionBuffer, SendBuffer);
+    }
+
     private void SendSendBuffer()
     {
-        isFrameBeingSent = true;
-        Task.Run(() =>
+        if (isFrameBeingSent)
         {
-            lock (SyncRoot)
+            return;
+        }
+
+        isFrameBeingSent = true;
+        try
+        {
+            Task.Run(() =>
             {
-                SendFrameInternal(SendBuffer);
-                isFrameBeingSent = false;
-            }
-        });
+                try
+                {
+                    lock (SyncRoot)
+                    {
+                        SendFrameInternal(SendBuffer);
+                        isFrameBeingSent = false;
+                    }
+                }
+                finally
+                {
+                    isFrameBeingSent = false;
+                }
+            });
+        }
+        finally
+        {
+            isFrameBeingSent = false;
+        }
     }
 
     private Stopwatch TotalStopwatch { get; } = new();
@@ -243,17 +290,22 @@ public class Push2Usb : IPush2Usb
     {
         if (Identity is null)
         {
+            Logger.LogError("Identity is null, cannot send frame data");
             throw new InvalidOperationException("Identity is null.");
         }
 
         if (frameData.Length % ChunkSize != 0)
         {
+            Logger.LogError(
+                "Frame data length ({Length}) is not a multiple of {ChunkSize}",
+                frameData.Length,
+                ChunkSize);
             throw new ArgumentException("Frame data must be a multiple of 512 bytes!");
         }
 
         if (PushDevice == IntPtr.Zero)
         {
-            Logger.LogWarning("Push 2 device is not connected.");
+            Logger.LogWarning("Push device is not connected");
             return;
         }
 
@@ -274,7 +326,7 @@ public class Push2Usb : IPush2Usb
         if (transferredBytes != FrameHeader.Length)
         {
             Logger.LogError(
-                "Could not send full header. Sent {Transferred}/{HeaderLength} bytes.",
+                "Could not send full header, sent {Transferred}/{HeaderLength} bytes",
                 transferredBytes,
                 FrameHeader.Length);
             return;
@@ -300,7 +352,7 @@ public class Push2Usb : IPush2Usb
 
             if (PushDevice == IntPtr.Zero)
             {
-                Logger.LogWarning("Push 2 device is not connected.");
+                Logger.LogWarning("Lost Push device while sending frame data");
                 return;
             }
 

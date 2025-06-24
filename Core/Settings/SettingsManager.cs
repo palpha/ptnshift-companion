@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Settings;
 
@@ -14,9 +15,11 @@ public interface ISettingsManager
     Task SaveAsync(AppSettings settings);
 }
 
-public class SettingsManager : ISettingsManager
+public class SettingsManager(ILogger<SettingsManager> logger) : ISettingsManager
 {
-    public static readonly string SettingsPath =
+    private ILogger<SettingsManager> Logger { get; } = logger;
+
+    private static readonly string SettingsPath =
         Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "PtnshiftCompanion",
@@ -30,8 +33,11 @@ public class SettingsManager : ISettingsManager
 
     public async Task<AppSettings> LoadAsync()
     {
+        Logger.LogInformation("Loading settings from {Path}", SettingsPath);
+
         if (File.Exists(SettingsPath) == false)
         {
+            Logger.LogInformation("Settings file not found");
             return new();
         }
 
@@ -41,8 +47,10 @@ public class SettingsManager : ISettingsManager
 
     public async Task SaveAsync(AppSettings settings)
     {
+        Logger.LogInformation("Saving settings to {Path}", SettingsPath);
+
         var directory = Path.GetDirectoryName(SettingsPath)
-                        ?? throw new InvalidOperationException("Could not locate settings directory.");
+            ?? throw new InvalidOperationException("Could not locate settings directory.");
 
         if (Directory.Exists(directory) == false)
         {

@@ -1,6 +1,7 @@
 using System.Buffers;
 using Avalonia.Media.Imaging;
 using Core.Capturing;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Image;
 
@@ -12,6 +13,8 @@ public interface IPreviewRenderer
 
 public class PreviewRenderer : IPreviewRenderer
 {
+    private ILogger<PreviewRenderer> Logger { get; }
+
     private Lock BitmapLock { get; } = new();
 
     private WriteableBitmap? ImageSource { get; set; }
@@ -21,8 +24,12 @@ public class PreviewRenderer : IPreviewRenderer
 
     public bool IsPreviewEnabled { get; set; }
 
-    public PreviewRenderer(ICaptureService captureService)
+    public PreviewRenderer(
+        ICaptureService captureService,
+        ILogger<PreviewRenderer> logger)
     {
+        Logger = logger;
+
         captureService.FrameCaptured += OnFrameReceived;
     }
 
@@ -84,6 +91,10 @@ public class PreviewRenderer : IPreviewRenderer
 
                 PreviewRendered.Invoke(ImageSource);
             }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to render preview");
         }
         finally
         {

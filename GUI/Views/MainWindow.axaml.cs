@@ -30,9 +30,10 @@ public partial class MainWindow : Window
     {
         CaptureService = captureService;
         DisplayService = displayService;
-        DisplayService.Screens = Screens;
 
         InitializeComponent();
+
+        DisplayService.ConfigureScreens(Screens);
 
         PreviewImage.AddHandler(PointerPressedEvent, DragPointerPressed, handledEventsToo: true);
         PreviewImage.AddHandler(PointerMovedEvent, DragPointerMoved, handledEventsToo: true);

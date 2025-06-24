@@ -15,8 +15,6 @@ public interface ICaptureEventSource
     void InvokeFrameCaptured(FrameCaptureType type, ReadOnlySpan<byte> frameBytes);
 }
 
-public delegate void ExceptionHandler(Exception exception);
-
 public interface IStreamer
 {
     ICaptureEventSource EventSource { get; }

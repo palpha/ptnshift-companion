@@ -1,10 +1,14 @@
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
+
 // ReSharper disable InconsistentNaming
 
 namespace Core.Capturing;
 
-public class MacDisplayService : DisplayServiceBase
+public class MacDisplayService(ILogger<MacDisplayService> logger) : DisplayServiceBase(logger)
 {
+    private ILogger<MacDisplayService> Logger { get; } = logger;
+
     private const string CoreGraphicsLib = "/System/Library/Frameworks/CoreGraphics.framework/CoreGraphics";
 
     [DllImport(CoreGraphicsLib)]
@@ -24,10 +28,13 @@ public class MacDisplayService : DisplayServiceBase
 
     protected override IEnumerable<DisplayInfo> ListDisplays()
     {
+        Logger.LogInformation("Listing displays");
+
         uint displayCount = 0;
         var countResult = CGGetActiveDisplayList(0, IntPtr.Zero, ref displayCount);
         if (countResult != 0)
         {
+            Logger.LogError("Failed to get active display list");
             yield break;
         }
 
@@ -60,6 +67,8 @@ public class MacDisplayService : DisplayServiceBase
         {
             Marshal.FreeHGlobal(displaysPtr);
         }
+
+        Logger.LogInformation("Yielded {Count} displays", displayCount);
     }
 }
 

@@ -1,3 +1,4 @@
+using Core.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Core.Capturing;
@@ -6,6 +7,7 @@ public abstract class CaptureServiceBase(
     IStreamer streamer,
     IDisplayService displayService,
     IPtnshiftFinder ptnshiftFinder,
+    IDiagnosticOutputRenderer diagnosticOutputRenderer,
     ILogger<CaptureServiceBase> logger)
     : ICaptureService
 {
@@ -13,6 +15,7 @@ public abstract class CaptureServiceBase(
 
     private IDisplayService DisplayService { get; } = displayService;
     private IPtnshiftFinder PtnshiftFinder { get; } = ptnshiftFinder;
+    private IDiagnosticOutputRenderer DiagnosticOutputRenderer { get; } = diagnosticOutputRenderer;
 
     private int DisplayWidth { get; set; }
 
@@ -28,6 +31,8 @@ public abstract class CaptureServiceBase(
 
     public virtual void SetConfiguration(CaptureConfiguration configuration)
     {
+        Logger.LogInformation("Setting configuration: {Configuration}", configuration);
+
         var previousConfiguration = CurrentConfiguration;
         CurrentConfiguration = configuration;
 
@@ -41,35 +46,61 @@ public abstract class CaptureServiceBase(
         {
             UpdateStreamerConfiguration(previousConfiguration);
         }
+
+        Logger.LogInformation("Configuration set");
     }
 
     public virtual void StartCapture()
     {
+        Logger.LogInformation("Starting capture");
+
         if (CurrentConfiguration == null)
         {
+            Logger.LogWarning("No current configuration available");
             throw new InvalidOperationException("Configuration not set.");
         }
 
-        if (IsCapturing || CurrentConfiguration.IsValid(DisplayService.AvailableDisplays) == false)
+        if (IsCapturing)
         {
+            Logger.LogWarning("Already capturing");
+            return;
+        }
+
+        if (CurrentConfiguration.IsValid(DisplayService.AvailableDisplays) == false)
+        {
+            Logger.LogWarning("Invalid capture configuration");
             return;
         }
 
         Streamer.EventSource.RegionFrameCaptured += OnRegionFrameReceived;
         Streamer.EventSource.FullScreenFrameCaptured += OnFullScreenFrameReceived;
         StartStreamer();
+
+        Logger.LogInformation("Started capture");
     }
 
     public void StopCapture()
     {
+        Logger.LogInformation("Stopping capture");
+
         if (IsCapturing == false)
         {
+            Logger.LogInformation("Was not capturing");
+
             return;
         }
 
         Streamer.EventSource.RegionFrameCaptured -= OnRegionFrameReceived;
         Streamer.EventSource.FullScreenFrameCaptured -= OnFullScreenFrameReceived;
+        StopStreamer();
+
+        Logger.LogInformation("Stopped capture");
+    }
+
+    protected void StopStreamer()
+    {
         Streamer.Stop();
+        DiagnosticOutputRenderer.SetText(Subsystem.PixelCapture, "");
     }
 
     protected void StartStreamer()
@@ -88,6 +119,8 @@ public abstract class CaptureServiceBase(
                 CurrentConfiguration.Width,
                 CurrentConfiguration.Height,
                 CurrentConfiguration.FrameRate);
+
+            DiagnosticOutputRenderer.SetText(Subsystem.PixelCapture, "Capturing");
         }
         catch (Exception ex)
         {

@@ -1,3 +1,4 @@
+using Core.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace Core.Capturing;
@@ -7,8 +8,9 @@ public class WindowsCaptureService(
     IStreamer streamer,
     IDisplayService displayService,
     IPtnshiftFinder ptnshiftFinder,
+    IDiagnosticOutputRenderer diagnosticOutputRenderer,
     ILogger<WindowsCaptureService> logger)
-    : CaptureServiceBase(streamer, displayService, ptnshiftFinder, logger)
+    : CaptureServiceBase(streamer, displayService, ptnshiftFinder, diagnosticOutputRenderer, logger)
 {
     public override Task<bool> CheckCapturePermissionAsync() =>
         // On Windows, usually no special permission needed for direct duplication.
@@ -26,7 +28,7 @@ public class WindowsCaptureService(
 
         if (previousConfiguration.DisplayId != CurrentConfiguration.DisplayId)
         {
-            Streamer.Stop();
+            StopStreamer();
             Task.Run(async () =>
             {
                 await Task.Delay(200);

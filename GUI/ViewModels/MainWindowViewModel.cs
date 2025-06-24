@@ -29,7 +29,6 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private bool isDebug;
     [ObservableProperty] private double measuredFrameRate;
     [ObservableProperty] private string lastFrameDumpFilename = "";
-    [ObservableProperty] private string debugOutput = "";
     [ObservableProperty] private ObservableCollection<DisplayInfo>? availableDisplays;
     [ObservableProperty] private DisplayInfo? selectedDisplayInfo;
     [ObservableProperty] private string? captureX = "533";
@@ -49,7 +48,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource permissionCheckCts = new();
 
     private ILogger<MainWindowViewModel> Logger { get; }
-    private IDebugWriter DebugWriter { get; }
     private IDisplayService DisplayService { get; }
     private ICaptureService CaptureService { get; }
     private IPtnshiftFinder PtnshiftFinder { get; }
@@ -62,7 +60,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel(
         ILogger<MainWindowViewModel> logger,
-        IDebugWriter debugWriter,
         IDisplayService displayService,
         ICaptureService captureService,
         IPtnshiftFinder ptnshiftFinder,
@@ -73,7 +70,6 @@ public partial class MainWindowViewModel : ViewModelBase
         IFrameRateReporter frameRateReporter)
     {
         Logger = logger;
-        DebugWriter = debugWriter;
         DisplayService = displayService;
         CaptureService = captureService;
         PtnshiftFinder = ptnshiftFinder;
@@ -82,7 +78,8 @@ public partial class MainWindowViewModel : ViewModelBase
         PreviewRenderer = previewRenderer;
         FrameDebugger = frameDebugger;
 
-        DebugWriter.DebugWritten += WriteDebug;
+        Logger.LogInformation("View model created, subscribing to events");
+
         PtnshiftFinder.LocationLost += OnLocationLost;
         PtnshiftFinder.LocationFound += OnLocationFound;
         PreviewRenderer.PreviewRendered += OnPreviewRendered;
@@ -96,11 +93,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
         PreviewRenderer.IsPreviewEnabled = IsPreviewEnabled;
 
+        Logger.LogInformation("Triggering initialization");
+
         DelayOperation(
             () => _ = ExecuteCheckPermissionAsync(),
             1000, ref permissionCheckCts);
-        _ = ExecuteConnectAsync();
         _ = LoadSettingsAsync();
+        _ = ExecuteConnectAsync();
     }
 
     private void OnPropertyChanged(object? _, PropertyChangedEventArgs e)
@@ -172,7 +171,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (LastFrameDumpFilename != filename)
         {
-            WriteDebug($"Frame dump: {filename}");
+            Logger.LogInformation("Frame dump written: {Filename}", filename);
         }
 
         LastFrameDumpFilename = filename;
@@ -180,11 +179,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OnLocationLost()
     {
-        WriteDebug("Lost location");
+        Logger.LogInformation("Lost location");
     }
 
     private void OnLocationFound(IPtnshiftFinder.Location x)
     {
+        Logger.LogInformation("Found location: {X}, {Y}", x.X, x.Y);
+
         if (IsAutoLocateEnabled == false)
         {
             return;
@@ -200,9 +201,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void UpdateCaptureConfiguration(CaptureConfiguration configuration, int? applicationDelayMs = null)
     {
+        Logger.LogInformation("Updating capture configuration");
+
         var newConfiguration = configuration.GetNormalized(DisplayService.AvailableDisplays);
         if (newConfiguration == CaptureConfiguration)
         {
+            Logger.LogInformation("Capture configuration unchanged");
             return;
         }
 
@@ -259,15 +263,27 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public async Task ExecuteCheckPermissionAsync()
     {
+        Logger.LogInformation("Checking capture permission");
+
         IsCapturePermitted = await CaptureService.CheckCapturePermissionAsync();
+
+        Logger.LogInformation("Capture permitted: {IsCapturePermitted}", IsCapturePermitted);
     }
 
     public async Task ExecuteToggleCaptureAsync()
     {
+        Logger.LogInformation("Toggling capture");
+
         await ExecuteCheckPermissionAsync();
 
-        if (IsCapturePermitted == false || SelectedDisplayInfo is null)
+        if (IsCapturePermitted == false)
         {
+            return;
+        }
+
+        if (SelectedDisplayInfo is null)
+        {
+            Logger.LogInformation("No display selected available");
             return;
         }
 
@@ -293,6 +309,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 Dispatcher.UIThread.Invoke(() => IsCapturing = CaptureService.IsCapturing);
             });
         }
+
+        Logger.LogInformation("Toggled capture");
     }
 
     public async Task ExecuteToggleConnectionAsync()
@@ -309,6 +327,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task ExecuteConnectAsync()
     {
+        Logger.LogInformation("Connecting to Push");
+
         await Task.CompletedTask;
 
         try
@@ -323,10 +343,14 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Logger.LogError(ex, "Unable to connect to Push");
         }
+
+        Logger.LogInformation("Initiated connection to Push");
     }
 
     private async Task ExecuteDisconnectAsync()
     {
+        Logger.LogInformation("Disconnecting from Push");
+
         await Task.CompletedTask;
 
         try
@@ -339,6 +363,8 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Logger.LogError(ex, "Unable to disconnect from Push");
         }
+
+        Logger.LogInformation("Initiated disconnection from Push");
     }
 
     private void DelayOperation(Action action, int delayMs, ref CancellationTokenSource cts)
@@ -368,8 +394,6 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }, token);
     }
-
-    private void WriteDebug(string message) => DebugOutput += $"{message}\n";
 
     public async Task ExecuteInspectLastFrameAsync()
     {

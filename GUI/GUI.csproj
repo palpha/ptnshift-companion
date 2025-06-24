@@ -35,6 +35,9 @@
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-preview.1.25080.5" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0-preview.1.25080.5" />
+        <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.3-dev-02320" />
+        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.1-dev-00953" />
+        <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     </ItemGroup>
 
     <ItemGroup>

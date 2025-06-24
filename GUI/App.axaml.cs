@@ -13,6 +13,11 @@ using GUI.Views;
 using Microsoft.Extensions.DependencyInjection;
 using Core.Capturing;
 using Core.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using Avalonia.Threading;
+using Microsoft.Extensions.Logging;
+using Serilog;
+using Serilog.Extensions.Logging;
 
 namespace GUI;
 
@@ -23,27 +28,34 @@ public class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
+    [RequiresUnreferencedCode("Uses data validation plugins that may not be preserved in trimming scenarios.")]
+#pragma warning disable IL2046
     public override void OnFrameworkInitializationCompleted()
+#pragma warning restore IL2046
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
+            // Avoid duplicate validations from both Avalonia and the CommunityToolkit.
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
-            var services = new ServiceCollection()
-                .AddLogging();
+            var services = new ServiceCollection();
+
+            // Logging
+            var serilogLoggerFactory = new SerilogLoggerFactory(Log.Logger);
+            services
+                .AddSingleton<ILoggerFactory>(serilogLoggerFactory)
+                .AddSingleton(typeof(ILogger<>), typeof(Logger<>));
 
             // Event producers and consumers
             services
                 .AddSingleton(TimeProvider.System)
-                .AddSingleton<IDebugWriter, DebugWriter>()
                 .AddSingleton<IPtnshiftFinder, PtnshiftFinder>()
                 .AddSingleton<IPush2Usb, Push2Usb>()
                 .AddSingleton<IFrameDebugger, FrameDebugger>()
                 .AddSingleton<IFrameRateReporter, FrameRateCounter>()
                 .AddSingleton<IPreviewRenderer, PreviewRenderer>();
 
-            // Stateless or single-consumer services 
+            // Stateless or single-consumer services
             services
                 .AddTransient<ICaptureEventSource, DefaultCaptureEventSource>()
                 .AddTransient<IImageConverter, ImageConverter>()
@@ -101,6 +113,7 @@ public class App : Application
         base.OnFrameworkInitializationCompleted();
     }
 
+    [RequiresUnreferencedCode("Calls Avalonia.Data.Core.Plugins.BindingPlugins.DataValidators")]
     private static void DisableAvaloniaDataAnnotationValidation()
     {
         var dataValidationPluginsToRemove =

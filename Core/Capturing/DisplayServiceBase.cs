@@ -1,7 +1,9 @@
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
+using Avalonia.Logging;
 using Avalonia.Platform;
 using Core.Settings;
+using Microsoft.Extensions.Logging;
 
 namespace Core.Capturing;
 
@@ -31,52 +33,51 @@ public record DisplayInfo(
 
 public interface IDisplayService
 {
-    Screens Screens { set; }
     ObservableCollection<DisplayInfo> AvailableDisplays { get; }
+    void ConfigureScreens(Screens? screens);
     DisplayInfo? GetDefaultDisplay(AppSettings? settings);
     DisplayInfo? GetDisplay(int? displayId);
 }
 
-public abstract class DisplayServiceBase : IDisplayService
+public abstract class DisplayServiceBase(ILogger<DisplayServiceBase> logger) : IDisplayService
 {
-    private Screens? screens;
+    private ILogger<DisplayServiceBase> Logger { get; } = logger;
 
-    public Screens? Screens
+    public void ConfigureScreens(Screens? screens)
     {
-        protected get => screens;
-        set
+        Logger.LogInformation("Configuring screens: {@Screens}", screens);
+
+        if (screens == null)
         {
-            screens = value;
-            if (value == null)
-            {
-                return;
-            }
-
-            Screen? FindMatchingScreen(int displayId, int? threshold = null)
-            {
-                var display = GetDisplay(displayId);
-                if (display == null)
-                {
-                    return null;
-                }
-
-                return value.All.FirstOrDefault(screen =>
-                    Math.Abs(screen.Bounds.X - display.BoundsX) <= (threshold ?? 1)
-                    && Math.Abs(screen.Bounds.Y - display.BoundsY) <= (threshold ?? 1));
-            }
-
-            AvailableDisplays.Clear();
-            foreach (var display in ListDisplays()
-                .OrderBy(x => x.Id)
-                .Select(x => x with
-                {
-                    IsPrimary = FindMatchingScreen(x.Id)?.IsPrimary ?? x.IsPrimary,
-                })
-                .ToList())
-            {
-                AvailableDisplays.Add(display);
-            }
+            return;
         }
+
+        Screen? FindMatchingScreen(int displayId, int? threshold = null)
+        {
+            var display = GetDisplay(displayId);
+            if (display == null)
+            {
+                return null;
+            }
+
+            return screens.All.FirstOrDefault(screen =>
+                Math.Abs(screen.Bounds.X - display.BoundsX) <= (threshold ?? 1)
+                && Math.Abs(screen.Bounds.Y - display.BoundsY) <= (threshold ?? 1));
+        }
+
+        AvailableDisplays.Clear();
+        foreach (var display in ListDisplays()
+            .OrderBy(x => x.Id)
+            .Select(x => x with
+            {
+                IsPrimary = FindMatchingScreen(x.Id)?.IsPrimary ?? x.IsPrimary,
+            })
+            .ToList())
+        {
+            AvailableDisplays.Add(display);
+        }
+
+        Logger.LogInformation("Available displays: {@AvailableDisplays}", AvailableDisplays);
     }
 
     public ObservableCollection<DisplayInfo> AvailableDisplays { get; } = [];
