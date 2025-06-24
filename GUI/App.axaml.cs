@@ -124,4 +124,37 @@ public class App : Application
             BindingPlugins.DataValidators.Remove(plugin);
         }
     }
+
+    private void WithMainWindow(Action<Window> action)
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime {MainWindow: not null} desktop)
+        {
+            action(desktop.MainWindow);
+        }
+    }
+
+
+    private void About_OnClick(object? sender, EventArgs e)
+    {
+        // show about window as dialog
+        var aboutWindow = new AboutWindow {DataContext = new AboutWindowViewModel()};
+        WithMainWindow(mainWindow => aboutWindow.ShowDialog(mainWindow));
+    }
+
+    private void WithMainWindowViewModel(Action<MainWindowViewModel> action)
+    {
+        WithMainWindow(mainWindow =>
+        {
+            if (mainWindow.DataContext is MainWindowViewModel vm)
+            {
+                action(vm);
+            }
+        });
+    }
+
+    private void Reset_OnClick(object? sender, EventArgs e) =>
+        WithMainWindowViewModel(vm => Dispatcher.UIThread.InvokeAsync(vm.ExecuteEmergencyResetAsync));
+
+    private void Log_OnClick(object? sender, EventArgs e) =>
+        WithMainWindowViewModel(vm => vm.ExecuteOpenLogFile());
 }

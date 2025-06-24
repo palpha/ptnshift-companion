@@ -40,6 +40,16 @@ public partial class MainWindow : Window
         PreviewImage.AddHandler(PointerReleasedEvent, DragPointerReleased, handledEventsToo: true);
     }
 
+    protected override void OnKeyUp(KeyEventArgs e)
+    {
+        if (e.Key == Key.Z && e.KeyModifiers.HasFlag(KeyModifiers.Control | KeyModifiers.Shift))
+        {
+            Dispatcher.UIThread.InvokeAsync(async () => { await ViewModel.ExecuteEmergencyResetAsync(); });
+        }
+
+        base.OnKeyUp(e);
+    }
+
     protected override void OnKeyDown(KeyEventArgs e)
     {
         var focused = FocusManager?.GetFocusedElement();
@@ -99,7 +109,7 @@ public partial class MainWindow : Window
 
     private void DragPointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        Cursor = new Cursor(StandardCursorType.DragMove);
+        Cursor = new(StandardCursorType.DragMove);
 
         IsDragging = true;
         ViewModel.IsAutoLocateEnabled = false;
@@ -117,11 +127,11 @@ public partial class MainWindow : Window
         var dragWindowTop = SelectedDisplay.BoundsY + cfg.CaptureY - Scaled(3 - 1);
 
         DragOutline?.Close();
-        DragOutline = new DragOutlineWindow
+        DragOutline = new()
         {
             Width = 960 + 6,
             Height = 160 + 6,
-            Position = new PixelPoint(dragWindowLeft, dragWindowTop)
+            Position = new(dragWindowLeft, dragWindowTop)
         };
         DragOutline.Show();
 
@@ -162,11 +172,13 @@ public partial class MainWindow : Window
 
         newLeft = Clamp(newLeft,
             SelectedDisplay.BoundsX - Scaled(3),
-            SelectedDisplay.BoundsX + SelectedDisplay.Width
+            SelectedDisplay.BoundsX
+            + SelectedDisplay.Width
             - Scaled((int) DragOutline.Width - 3));
         newTop = Clamp(newTop,
             SelectedDisplay.BoundsY - Scaled(3),
-            SelectedDisplay.BoundsY + SelectedDisplay.Height
+            SelectedDisplay.BoundsY
+            + SelectedDisplay.Height
             - Scaled((int) DragOutline.Height - 3));
 
         // Move the overlay
@@ -180,7 +192,7 @@ public partial class MainWindow : Window
         var delayMs = CaptureService.GetConfigurationChangeDelayMs(cfg);
         if (delayMs > 0)
         {
-            DebounceCts = new CancellationTokenSource();
+            DebounceCts = new();
             var token = DebounceCts.Token;
             _ = Task.Run(async () =>
             {
@@ -204,7 +216,7 @@ public partial class MainWindow : Window
 
     private void DragPointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        Cursor = new Cursor(StandardCursorType.Arrow);
+        Cursor = new(StandardCursorType.Arrow);
 
         IsDragging = false;
         DebounceCts?.Cancel();
@@ -215,6 +227,8 @@ public partial class MainWindow : Window
 
         DragOutline?.Close();
         DragOutline = null;
+
+        ArrowKeyEnabler.Focus();
     }
 
     private CaptureConfiguration GetConfigurationFromDragOutline()

@@ -1,19 +1,40 @@
 <Application xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="GUI.App"
-             xmlns:local="using:GUI"
-             RequestedThemeVariant="Dark">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="GUI.App"
+    xmlns:local="using:GUI" RequestedThemeVariant="Dark"
+    Name="PTNSHIFT Companion">
     <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>
 
+    <NativeMenu.Menu>
+        <NativeMenu>
+            <NativeMenuItem Header="About PTNSHIFT Companion" Click="About_OnClick" />
+            <NativeMenuItem Header="Connect and capture" Click="Reset_OnClick" />
+            <NativeMenuItem Header="Open log file" Click="Log_OnClick" />
+        </NativeMenu>
+    </NativeMenu.Menu>
+
     <Application.Styles>
         <FluentTheme>
             <FluentTheme.Palettes>
-                <ColorPaletteResources x:Key="Light" Accent="#ff08988a" AltHigh="White" AltLow="White" AltMedium="White" AltMediumHigh="White" AltMediumLow="White" BaseHigh="Black" BaseLow="#ff888888" BaseMedium="#ff535353" BaseMediumHigh="#ff303030" BaseMediumLow="#ff424242" ChromeAltLow="#ff303030" ChromeBlackHigh="Black" ChromeBlackLow="#ff888888" ChromeBlackMedium="#ff303030" ChromeBlackMediumLow="#ff535353" ChromeDisabledHigh="#ff888888" ChromeDisabledLow="#ff535353" ChromeGray="#ff424242" ChromeHigh="#ff888888" ChromeLow="LightGray" ChromeMedium="#ffc4c4c4" ChromeMediumLow="LightGray" ChromeWhite="White" ListLow="#ffc4c4c4" ListMedium="#ff888888" RegionColor="#ffbbbbbb" />
-                <ColorPaletteResources x:Key="Dark" Accent="#ff08988a" AltHigh="Black" AltLow="Black" AltMedium="Black" AltMediumHigh="Black" AltMediumLow="Black" BaseHigh="White" BaseLow="#ff555555" BaseMedium="#ffababab" BaseMediumHigh="Silver" BaseMediumLow="Gray" ChromeAltLow="Silver" ChromeBlackHigh="Black" ChromeBlackLow="Silver" ChromeBlackMedium="Black" ChromeBlackMediumLow="Black" ChromeDisabledHigh="#ff555555" ChromeDisabledLow="#ffababab" ChromeGray="#ff959595" ChromeHigh="#ff959595" ChromeLow="#ff252525" ChromeMedium="#ff313131" ChromeMediumLow="#ff494949" ChromeWhite="White" ListLow="#ff313131" ListMedium="#ff555555" RegionColor="#ff202020" />
+                <ColorPaletteResources x:Key="Light" Accent="#ff08988a" AltHigh="White" AltLow="White"
+                    AltMedium="White" AltMediumHigh="White" AltMediumLow="White" BaseHigh="Black" BaseLow="#ff888888"
+                    BaseMedium="#ff535353" BaseMediumHigh="#ff303030" BaseMediumLow="#ff424242"
+                    ChromeAltLow="#ff303030" ChromeBlackHigh="Black" ChromeBlackLow="#ff888888"
+                    ChromeBlackMedium="#ff303030" ChromeBlackMediumLow="#ff535353" ChromeDisabledHigh="#ff888888"
+                    ChromeDisabledLow="#ff535353" ChromeGray="#ff424242" ChromeHigh="#ff888888" ChromeLow="LightGray"
+                    ChromeMedium="#ffc4c4c4" ChromeMediumLow="LightGray" ChromeWhite="White" ListLow="#ffc4c4c4"
+                    ListMedium="#ff888888" RegionColor="#ffbbbbbb" />
+                <ColorPaletteResources x:Key="Dark" Accent="#ff08988a" AltHigh="Black" AltLow="Black" AltMedium="Black"
+                    AltMediumHigh="Black" AltMediumLow="Black" BaseHigh="White" BaseLow="#ff555555"
+                    BaseMedium="#ffababab" BaseMediumHigh="Silver" BaseMediumLow="Gray" ChromeAltLow="Silver"
+                    ChromeBlackHigh="Black" ChromeBlackLow="Silver" ChromeBlackMedium="Black"
+                    ChromeBlackMediumLow="Black" ChromeDisabledHigh="#ff555555" ChromeDisabledLow="#ffababab"
+                    ChromeGray="#ff959595" ChromeHigh="#ff959595" ChromeLow="#ff252525" ChromeMedium="#ff313131"
+                    ChromeMediumLow="#ff494949" ChromeWhite="White" ListLow="#ff313131" ListMedium="#ff555555"
+                    RegionColor="#ff202020" />
             </FluentTheme.Palettes>
         </FluentTheme>
     </Application.Styles>

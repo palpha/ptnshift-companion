@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -117,7 +118,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     return;
                 }
 
-                UpdateCaptureConfiguration(CaptureConfiguration with { DisplayId = SelectedDisplayInfo!.Id });
+                UpdateCaptureConfiguration(CaptureConfiguration with {DisplayId = SelectedDisplayInfo!.Id});
 
                 break;
             }
@@ -130,7 +131,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 if (int.TryParse(CaptureX, out var x))
                 {
-                    UpdateCaptureConfiguration(CaptureConfiguration with { CaptureX = x });
+                    UpdateCaptureConfiguration(CaptureConfiguration with {CaptureX = x});
                 }
 
                 break;
@@ -144,7 +145,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 if (int.TryParse(CaptureY, out var x))
                 {
-                    UpdateCaptureConfiguration(CaptureConfiguration with { CaptureY = x });
+                    UpdateCaptureConfiguration(CaptureConfiguration with {CaptureY = x});
                 }
 
                 break;
@@ -158,7 +159,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
                 if (int.TryParse(CaptureFrameRate, out var x))
                 {
-                    UpdateCaptureConfiguration(CaptureConfiguration with { FrameRate = x });
+                    UpdateCaptureConfiguration(CaptureConfiguration with {FrameRate = x});
                 }
 
                 break;
@@ -203,7 +204,7 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        UpdateCaptureConfiguration(CaptureConfiguration with { CaptureX = x.X, CaptureY = x.Y }, 0);
+        UpdateCaptureConfiguration(CaptureConfiguration with {CaptureX = x.X, CaptureY = x.Y}, 0);
     }
 
     private void OnPreviewRendered(WriteableBitmap previewBitmap)
@@ -414,20 +415,38 @@ public partial class MainWindowViewModel : ViewModelBase
         await FrameDebugger.DumpLastFrameAsync();
     }
 
-    public void ExecuteOpenLastFrameDump()
+    private static void OpenFile(string? filename)
     {
-        if (string.IsNullOrWhiteSpace(LastFrameDumpFilename))
+        if (string.IsNullOrWhiteSpace(filename))
         {
             return;
         }
 
         if (OperatingSystem.IsMacOS())
         {
-            Process.Start("open", $"-R \"{LastFrameDumpFilename}\"");
+            Process.Start("open", $"-R \"{filename}\"");
         }
         else if (OperatingSystem.IsWindows())
         {
-            Process.Start("explorer.exe", $"/select,\"{LastFrameDumpFilename}\"");
+            Process.Start("explorer.exe", $"/select,\"{filename}\"");
         }
+    }
+
+    public void ExecuteOpenLastFrameDump() =>
+        OpenFile(LastFrameDumpFilename);
+
+    public void ExecuteOpenLogFile() =>
+        OpenFile(Path.GetDirectoryName(SerilogSink.LogFilePath));
+
+    public async Task ExecuteEmergencyResetAsync()
+    {
+        Logger.LogInformation("Emergency reset requested");
+
+        CaptureService.StopCapture();
+        await ExecuteDisconnectAsync();
+        await ExecuteConnectAsync();
+        await ExecuteToggleCaptureAsync();
+
+        Logger.LogInformation("Emergency reset initiated");
     }
 }
