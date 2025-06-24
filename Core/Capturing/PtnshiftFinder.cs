@@ -63,6 +63,7 @@ public class PtnshiftFinder : IPtnshiftFinder
     public event Action LocationLost = delegate { };
     public event Action<IPtnshiftFinder.Location> LocationFound = delegate { };
 
+    private IPtnshiftFinder.Location? LastLocation { get; set; }
     private IPtnshiftFinder.Location? FoundLocation { get; set; }
 
     public void OnFullScreenCapture(int width, ReadOnlySpan<byte> buffer)
@@ -111,10 +112,13 @@ public class PtnshiftFinder : IPtnshiftFinder
     private void OnLocationCheckTick(object? state)
     {
         LastLocationCheckTimestamp = TimeProvider.GetTimestamp();
-        if (FoundLocation != null)
+        if (FoundLocation == null || LastLocation == FoundLocation)
         {
-            SetLocationFound(FoundLocation);
+            return;
         }
+
+        LastLocation = FoundLocation;
+        SetLocationFound(FoundLocation);
     }
 
     private static bool FindInBuffer(
