@@ -89,6 +89,8 @@ public abstract class CaptureServiceBase : ICaptureService
 
         Streamer.EventSource.RegionFrameCaptured += OnRegionFrameReceived;
         Streamer.EventSource.FullScreenFrameCaptured += OnFullScreenFrameReceived;
+        Streamer.EventSource.RegionCaptureStopped += OnCaptureStopped;
+        Streamer.EventSource.FullScreenCaptureStopped += OnCaptureStopped;
         StartStreamer();
 
         Logger.LogInformation("Started capture");
@@ -107,6 +109,8 @@ public abstract class CaptureServiceBase : ICaptureService
 
         Streamer.EventSource.RegionFrameCaptured -= OnRegionFrameReceived;
         Streamer.EventSource.FullScreenFrameCaptured -= OnFullScreenFrameReceived;
+        Streamer.EventSource.RegionCaptureStopped -= OnCaptureStopped;
+        Streamer.EventSource.FullScreenCaptureStopped -= OnCaptureStopped;
         StopStreamer();
 
         Logger.LogInformation("Stopped capture");
@@ -168,6 +172,37 @@ public abstract class CaptureServiceBase : ICaptureService
         }
 
         PtnshiftFinder.OnFullScreenCapture(DisplayWidth, frame);
+    }
+
+    private SemaphoreSlim StoppedLock { get; } = new(1, 1);
+    private long LastRestartTimestamp { get; set; }
+
+    private async void OnCaptureStopped(CaptureStoppedEvent captureStoppedEvent)
+    {
+        try
+        {
+            Logger.LogInformation("Region capture stopped: {@Event}", captureStoppedEvent);
+
+            var savedTimestamp = LastRestartTimestamp;
+            Logger.LogInformation("Awaiting restart lock");
+            await StoppedLock.WaitAsync();
+            if (savedTimestamp > LastRestartTimestamp)
+            {
+                Logger.LogInformation("Restart already happened, ignoring");
+                return;
+            }
+
+            LastRestartTimestamp = TimeProvider.GetTimestamp();
+            StartStreamer();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to restart capture");
+        }
+        finally
+        {
+            StoppedLock.Release();
+        }
     }
 
     protected abstract void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration);

@@ -1,16 +1,14 @@
 ﻿using Avalonia;
 using Avalonia.Logging;
-using Microsoft.Extensions.Logging;
 using System;
 using Serilog;
-using ILogger = Microsoft.Extensions.Logging.ILogger;
 
 namespace GUI;
 
 // ReSharper disable once ClassNeverInstantiated.Global
 public sealed class Program
 {
-    private static SerilogSink SerilogSink { get; set; }
+    private static SerilogSink SerilogSink { get; set; } = null!;
 
     // Initialization code. Don't use any Avalonia, third-party APIs or any
     // SynchronizationContext-reliant code before AppMain is called: things aren't initialized

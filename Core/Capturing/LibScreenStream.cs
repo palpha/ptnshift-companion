@@ -4,22 +4,27 @@ namespace Core.Capturing;
 
 public static class LibScreenStream
 {
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ScreenStreamError
+    {
+        public int code;
+        public IntPtr domain;       // char* (C string)
+        public IntPtr description;  // char* (C string)
+    }
+
     private const string LibraryName = "libscreenstream.dylib";
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void DisplayInfoCallback(nint displayInfos, int count);
+    internal delegate void CaptureCallback(nint data, int length);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    internal delegate void CaptureCallback(nint data, int length);
+    public delegate void ErrorCallback(IntPtr errorPtr);
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "CheckCapturePermission")]
     internal static extern void CheckCapturePermission();
 
     [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "IsCapturePermissionGranted")]
     internal static extern bool IsCapturePermissionGranted();
-
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "GetAvailableDisplays")]
-    internal static extern int GetAvailableDisplays(DisplayInfoCallback callback);
 
     [DllImport(LibraryName, EntryPoint = "StartCapture")]
     internal static extern int StartCapture(
@@ -29,18 +34,11 @@ public static class LibScreenStream
         int frameRate,
         int fullScreenFrameRate,
         CaptureCallback regionCallback,
-        CaptureCallback fullScreenCallback
+        CaptureCallback fullScreenCallback,
+        ErrorCallback regionStoppedCallback,
+        ErrorCallback fullScreenStoppedCallback
     );
 
     [DllImport(LibraryName, EntryPoint = "StopCapture")]
     internal static extern int StopCapture();
-
-    [StructLayout(LayoutKind.Sequential)]
-    public struct DisplayInfo
-    {
-        public int Id;
-        public int Width;
-        public int Height;
-        public bool IsMain;
-    }
 }

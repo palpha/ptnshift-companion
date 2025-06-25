@@ -32,6 +32,8 @@ public class MacStreamer(
 
     private static LibScreenStream.CaptureCallback? RegionCaptureCallback { get; set; }
     private static LibScreenStream.CaptureCallback? FullScreenCaptureCallback { get; set; }
+    private static LibScreenStream.ErrorCallback? RegionCaptureStoppedCallback { get; set; }
+    private static LibScreenStream.ErrorCallback? FullScreenCaptureStoppedCallback { get; set; }
 
     public void Start(int displayId, int x, int y, int width, int height, int frameRate)
     {
@@ -58,13 +60,18 @@ public class MacStreamer(
         var fullScreenBufferSize = display.Width * display.Height * 3;
         FullScreenCaptureCallback = OnFrame(fullScreenBufferSize, FrameCaptureType.FullScreen);
 
+        RegionCaptureStoppedCallback = OnStopped(FrameCaptureType.Region);
+        FullScreenCaptureStoppedCallback = OnStopped(FrameCaptureType.FullScreen);
+
         var result = LibScreenStream.StartCapture(
             displayId,
             x, y,
             width, height,
             frameRate, fullScreenFrameRate: 1,
             RegionCaptureCallback,
-            FullScreenCaptureCallback);
+            FullScreenCaptureCallback,
+            RegionCaptureStoppedCallback,
+            FullScreenCaptureStoppedCallback);
         if (result != 0)
         {
             Logger.LogError("Failed to start capture, HRESULT {HResult}", result);
@@ -119,6 +126,25 @@ public class MacStreamer(
             }
         };
     }
+
+    private LibScreenStream.ErrorCallback OnStopped(FrameCaptureType type) => errorPtr =>
+    {
+        Stop();
+
+        if (errorPtr == IntPtr.Zero)
+        {
+            // No error
+            return;
+        }
+
+        var error = Marshal.PtrToStructure<LibScreenStream.ScreenStreamError>(errorPtr);
+        var domain = Marshal.PtrToStringAnsi(error.domain);
+        var description = Marshal.PtrToStringAnsi(error.description);
+
+        Logger.LogInformation("Capture stopped: {@Code}, {Domain}, {Description}", error.code, domain, description);
+
+        EventSource.InvokeCaptureStopped(type, new(error.code, description ?? ""));
+    };
 
     public void Stop()
     {

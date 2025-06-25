@@ -10,7 +10,7 @@ public class EventSourceMock : ICaptureEventSource
     public List<ReadOnlyMemory<byte>> Frames { get; } = [];
 
     private event FrameCapturedHandler? InternalFrameCaptured;
-    
+
     public event FrameCapturedHandler? RegionFrameCaptured
     {
         add
@@ -26,6 +26,8 @@ public class EventSourceMock : ICaptureEventSource
     }
 
     public event FrameCapturedHandler? FullScreenFrameCaptured;
+    public event CaptureStoppedHandler? RegionCaptureStopped;
+    public event CaptureStoppedHandler? FullScreenCaptureStopped;
 
     public void InvokeFrameCaptured(FrameCaptureType type, ReadOnlySpan<byte> frameBytes)
     {
@@ -33,8 +35,13 @@ public class EventSourceMock : ICaptureEventSource
         {
             return;
         }
-        
+
         Frames.Add(frameBytes.ToArray());
         InternalFrameCaptured?.Invoke(frameBytes);
+    }
+
+    public void InvokeCaptureStopped(FrameCaptureType type, CaptureStoppedEvent eventArgs)
+    {
+        throw new NotImplementedException();
     }
 }

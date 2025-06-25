@@ -1,13 +1,16 @@
 #!/bin/bash
 set -e
 
+configuration=${1:-release}
+cap_configuration=$(printf '%s' "$configuration" | awk '{print toupper(substr($0,1,1)) tolower(substr($0,2))}')
+
 mkdir -p publish
 
 x64_output="publish/osx-x64"
 arm64_output="publish/osx-arm64"
 
-dotnet publish GUI/GUI.csproj -f net9.0 -r osx-x64 -c "Release MacOS" -o $x64_output -p:UseAppHost=true
-dotnet publish GUI/GUI.csproj -f net9.0 -r osx-arm64 -c "Release MacOS" -o $arm64_output -p:UseAppHost=true
+dotnet publish GUI/GUI.csproj -f net9.0 -r osx-x64 -c "$cap_configuration MacOS" -o $x64_output -p:UseAppHost=true
+dotnet publish GUI/GUI.csproj -f net9.0 -r osx-arm64 -c "$cap_configuration MacOS" -o $arm64_output -p:UseAppHost=true
 
 x64_app="$x64_output/PTNSHIFT Companion"
 arm64_app="$arm64_output/PTNSHIFT Companion"

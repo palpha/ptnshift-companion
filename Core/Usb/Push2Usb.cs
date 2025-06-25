@@ -153,14 +153,23 @@ public sealed class Push2Usb : IPush2Usb
         {
             try
             {
-                if (IsConnected == false || HasReceivedRecentFrame())
+                if (IsConnected == false)
                 {
+                    return;
+                }
+
+                var now = TimeProvider.GetLocalNow();
+                var nowStr = $" ({now.ToString("u").Replace("Z", "")})";
+
+                if (HasReceivedRecentFrame())
+                {
+                    DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, $"Streaming{nowStr}");
                     return;
                 }
 
                 if (SeenFrames > 0)
                 {
-                    if (DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, "Resending") == false)
+                    if (DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, $"Resending{nowStr}") == false)
                     {
                         // If the text was not updated, it means the overlay is not visible
                         SendSendBuffer();
@@ -218,7 +227,6 @@ public sealed class Push2Usb : IPush2Usb
     public void SendFrame(ReadOnlySpan<byte> rgbFrame)
     {
         SeenFrames++;
-        DiagnosticOutputRenderer.SetText(Subsystem.FrameTransmission, "Streaming");
 
         if (SkippedFrames % 1000 == 1)
         {
@@ -286,6 +294,7 @@ public sealed class Push2Usb : IPush2Usb
         {
             return;
         }
+
         var diagnosticOverlayBgra = overlayBitmap.Bytes;
         for (var y = 0; y < OverlayHeight; y++)
         {
@@ -300,6 +309,7 @@ public sealed class Push2Usb : IPush2Usb
                 {
                     continue;
                 }
+
                 var rgbIdx = (y * OverlayWidth + x) * 3;
                 var alpha = olA / 255f;
                 rgbFrame[rgbIdx + 0] = (byte) (olR * alpha + rgbFrame[rgbIdx + 0] * (1 - alpha));
@@ -435,9 +445,9 @@ public sealed class Push2Usb : IPush2Usb
             }
 
             Logger.LogError(
-                "USB transfer failed at chunk {ChunkIndex}. " +
-                "Sent {Transferred}/{ChunkSize} bytes. " +
-                "Error: {Message}",
+                "USB transfer failed at chunk {ChunkIndex}. "
+                + "Sent {Transferred}/{ChunkSize} bytes. "
+                + "Error: {Message}",
                 i / ChunkSize,
                 transferred,
                 ChunkSize,
