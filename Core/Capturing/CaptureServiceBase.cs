@@ -24,7 +24,7 @@ public abstract class CaptureServiceBase : ICaptureService
         StartCaptureMonitoring();
     }
 
-    protected IStreamer Streamer { get; }
+    public IStreamer Streamer { get; }
 
     private IDisplayService DisplayService { get; }
     private IPtnshiftFinder PtnshiftFinder { get; }
@@ -242,6 +242,9 @@ public abstract class CaptureServiceBase : ICaptureService
             }
 
             LastRestartTimestamp = TimeProvider.GetTimestamp();
+            DiagnosticOutputRenderer.SetText(
+                Subsystem.PixelCaptureIssues,
+                $"Restarted at {TimeProvider.GetLocalNow():yyyy-MM-dd HH:mm:ss}");
             StartStreamer();
         }
         catch (Exception ex)

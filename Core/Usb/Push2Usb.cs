@@ -159,7 +159,7 @@ public sealed class Push2Usb : IPush2Usb
                 }
 
                 var now = TimeProvider.GetLocalNow();
-                var nowStr = $" ({now.ToString("u").Replace("Z", "")})";
+                var nowStr = $" {now:yyyy-MM-dd HH:mm:ss}";
 
                 if (HasReceivedRecentFrame())
                 {

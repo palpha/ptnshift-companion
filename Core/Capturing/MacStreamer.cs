@@ -431,6 +431,25 @@ public class MacStreamer(
         };
     }
 
+    public void TriggerCaptureFailure()
+    {
+        if (RegionCaptureStoppedCallback == null)
+        {
+            return; // Ignore if not initialized
+        }
+
+        // Trigger RegionCaptureStoppedCallback with IntPtr pointing to a simulated error
+        // This is used to simulate a failure in the native library
+        var error = new LibScreenStream.ScreenStreamError
+        {
+            code = -1,
+            domain = Marshal.StringToHGlobalAnsi("TestDomain"),
+            description = Marshal.StringToHGlobalAnsi("TestDescription")
+        };
+        var errorPtr = Marshal.AllocHGlobal(Marshal.SizeOf<LibScreenStream.ScreenStreamError>());
+        Marshal.StructureToPtr(error, errorPtr, false);
+        RegionCaptureStoppedCallback(errorPtr);
+    }
 
     // Stop Handling Approach:
     // - Manual stops (via Stop() method) call native StopCapture first, then cleanup, preventing callbacks during cleanup
@@ -481,7 +500,7 @@ public class MacStreamer(
             // Handle stops differently based on whether this is a manual stop or involuntary
             // Manual stop = we called StopAsync() and are waiting for both streams to stop
             // Involuntary stop = external event (system menu, permissions, error) that we need to handle immediately
-            bool isManualStop = false;
+            bool isManualStop;
             lock (StopLock)
             {
                 isManualStop = StopInProgress;
@@ -493,7 +512,7 @@ public class MacStreamer(
 
                 // For manual stops, track which capture types have stopped
                 TaskCompletionSource<bool>? pendingCompletion = null;
-                bool shouldComplete = false;
+                var shouldComplete = false;
 
                 lock (StopLock)
                 {

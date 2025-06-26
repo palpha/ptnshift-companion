@@ -19,20 +19,20 @@ public class DiagnosticOutputRenderer : IDiagnosticOutputRenderer
     private const int Height = 160;
 
     private ConcurrentDictionary<Subsystem, DiagnosticText> Texts { get; } = new();
-    private SKFont Font { get; } = new(SKTypeface.Default, 24);
+    private SKFont Font { get; } = new(SKTypeface.Default, 16);
 
     private SKPaint Paint { get; } = new()
     {
-        Color = SKColors.White,
+        Color = SKColors.White.WithAlpha(170),
         IsAntialias = true
     };
 
     private static IReadOnlyDictionary<Subsystem, DiagnosticTextPosition> SubsystemPositions { get; } =
-        new Dictionary<Subsystem, DiagnosticTextPosition>()
+        new Dictionary<Subsystem, DiagnosticTextPosition>
         {
-            [Subsystem.CaptureLocation] = DiagnosticTextPosition.TopLeft,
+            [Subsystem.Unused] = DiagnosticTextPosition.TopLeft,
             [Subsystem.PixelCapture] = DiagnosticTextPosition.TopRight,
-            [Subsystem.PixelConversion] = DiagnosticTextPosition.BottomLeft,
+            [Subsystem.PixelCaptureIssues] = DiagnosticTextPosition.BottomLeft,
             [Subsystem.FrameTransmission] = DiagnosticTextPosition.BottomRight
         };
 
@@ -41,10 +41,10 @@ public class DiagnosticOutputRenderer : IDiagnosticOutputRenderer
         (Func<float, float, (float x, float y)> Position, SKTextAlign Align)> PositionMappings { get; } =
         new Dictionary<DiagnosticTextPosition, (Func<float, float, (float, float)>, SKTextAlign)>
         {
-            [DiagnosticTextPosition.TopLeft] = ((w, h) => (10, 30), SKTextAlign.Left),
-            [DiagnosticTextPosition.TopRight] = ((w, h) => (w - 10, 30), SKTextAlign.Right),
-            [DiagnosticTextPosition.BottomLeft] = ((w, h) => (10, h - 10), SKTextAlign.Left),
-            [DiagnosticTextPosition.BottomRight] = ((w, h) => (w - 10, h - 10), SKTextAlign.Right)
+            [DiagnosticTextPosition.TopLeft] = ((w, h) => (170, 60), SKTextAlign.Left),
+            [DiagnosticTextPosition.TopRight] = ((w, h) => (w - 5, 60), SKTextAlign.Right),
+            [DiagnosticTextPosition.BottomLeft] = ((w, h) => (170, h - 36), SKTextAlign.Left),
+            [DiagnosticTextPosition.BottomRight] = ((w, h) => (w - 5, h - 36), SKTextAlign.Right)
         };
 
     public event EventHandler? OverlayChanged;

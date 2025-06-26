@@ -177,6 +177,7 @@
                 <WrapPanel Margin="0,0,0,12" IsVisible="{Binding IsDebug}">
                     <Button Content="Dump last frame" Command="{Binding ExecuteInspectLastFrameAsync}" />
                     <Button Content="Open frame dump file" Command="{Binding ExecuteOpenLastFrameDump}" />
+                    <Button Content="Cause capture failure" Command="{Binding ExecuteCauseCaptureFailure}" />
                 </WrapPanel>
             </StackPanel>
         </StackPanel>

@@ -4,9 +4,9 @@ namespace Core.Diagnostics;
 
 public enum Subsystem
 {
-    CaptureLocation,
+    Unused,
     PixelCapture,
-    PixelConversion,
+    PixelCaptureIssues,
     FrameTransmission
 }
 

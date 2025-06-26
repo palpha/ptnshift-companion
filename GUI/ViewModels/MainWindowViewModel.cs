@@ -432,6 +432,14 @@ public partial class MainWindowViewModel : ViewModelBase
     public void ExecuteOpenLogFile() =>
         OpenFile(Path.GetDirectoryName(SerilogSink.LogFilePath));
 
+    public void ExecuteCauseCaptureFailure()
+    {
+        if (CaptureService is CaptureServiceBase cs && cs.Streamer is MacStreamer ms)
+        {
+            ms.TriggerCaptureFailure();
+        }
+    }
+
     public async Task ExecuteEmergencyResetAsync()
     {
         Logger.LogInformation("Emergency reset requested");
