@@ -12,6 +12,7 @@ public class DefaultCaptureEventSource(ILogger<DefaultCaptureEventSource> logger
     public event FrameCapturedHandler? FullScreenFrameCaptured;
     public event CaptureStoppedHandler? RegionCaptureStopped;
     public event CaptureStoppedHandler? FullScreenCaptureStopped;
+    public event CaptureStateChangedHandler? CaptureStateChanged;
 
     public void InvokeFrameCaptured(FrameCaptureType type, ReadOnlySpan<byte> frameBytes)
     {
@@ -48,5 +49,10 @@ public class DefaultCaptureEventSource(ILogger<DefaultCaptureEventSource> logger
         {
             FullScreenCaptureStopped?.Invoke(eventArgs);
         }
+    }
+
+    public void InvokeCaptureStateChanged(bool isCapturing)
+    {
+        CaptureStateChanged?.Invoke(isCapturing);
     }
 }

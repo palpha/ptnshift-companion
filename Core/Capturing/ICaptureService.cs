@@ -10,5 +10,5 @@ public interface ICaptureService : IDisposable
     int GetConfigurationChangeDelayMs(CaptureConfiguration configuration);
     void SetConfiguration(CaptureConfiguration configuration);
     void StartCapture();
-    void StopCapture();
+    Task StopCaptureAsync();
 }

@@ -24,11 +24,11 @@ public class MacCaptureService(
         return await Streamer.CheckPermissionAsync();
     }
 
-    public override int GetConfigurationChangeDelayMs(CaptureConfiguration configuration) => 400;
+    public override int GetConfigurationChangeDelayMs(CaptureConfiguration configuration) => 100;
 
-    protected override void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration)
+    protected override async Task UpdateStreamerConfigurationAsync(CaptureConfiguration previousConfiguration)
     {
-        StopStreamer();
+        await StopStreamerAsync();
         StartStreamer();
     }
 }

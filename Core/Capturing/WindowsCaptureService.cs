@@ -26,7 +26,7 @@ public class WindowsCaptureService(
     public override int GetConfigurationChangeDelayMs(CaptureConfiguration configuration) =>
         CurrentConfiguration?.DisplayId != configuration.DisplayId ? 500 : 0;
 
-    protected override void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration)
+    protected override async Task UpdateStreamerConfigurationAsync(CaptureConfiguration previousConfiguration)
     {
         if (CurrentConfiguration == null)
         {
@@ -35,24 +35,21 @@ public class WindowsCaptureService(
 
         if (previousConfiguration.DisplayId != CurrentConfiguration.DisplayId)
         {
-            StopStreamer();
-            Task.Run(async () =>
+            await StopStreamerAsync();
+            await Task.Delay(200);
+            try
             {
-                await Task.Delay(200);
-                try
+                if (Streamer.IsCapturing)
                 {
-                    if (Streamer.IsCapturing)
-                    {
-                        return;
-                    }
+                    return;
+                }
 
-                    StartStreamer();
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "Failed to restart capture");
-                }
-            });
+                StartStreamer();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "Failed to restart capture");
+            }
         }
         else
         {

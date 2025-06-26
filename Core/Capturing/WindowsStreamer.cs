@@ -27,7 +27,21 @@ public class WindowsStreamer(
 
     public ICaptureEventSource EventSource { get; } = eventSource;
 
-    public bool IsCapturing { get; private set; }
+    private bool isCapturing;
+    public bool IsCapturing
+    {
+        get => isCapturing;
+        private set
+        {
+            if (isCapturing == value)
+            {
+                return;
+            }
+
+            isCapturing = value;
+            EventSource.InvokeCaptureStateChanged(value);
+        }
+    }
 
     public Task<bool> CheckPermissionAsync()
     {
@@ -74,18 +88,33 @@ public class WindowsStreamer(
         EffectiveHeight = height;
     }
 
-    public void Stop()
+    public async Task StopAsync()
     {
         if (IsCapturing == false)
         {
             return;
         }
 
-        Task.Run(() =>
+        // Use Task.Run to execute the stop operation asynchronously
+        await Task.Run(() =>
         {
             WinScreenStreamLib.StopCapture();
             IsCapturing = false;
         });
+    }
+
+    /// <summary>
+    /// Internal synchronous stop method for use in disposal.
+    /// </summary>
+    private void StopInternal()
+    {
+        if (IsCapturing == false)
+        {
+            return;
+        }
+
+        WinScreenStreamLib.StopCapture();
+        IsCapturing = false;
     }
 
     ~WindowsStreamer() // Finalizer
@@ -95,7 +124,7 @@ public class WindowsStreamer(
 
     public void Dispose()
     {
-        Stop();
+        StopInternal();
         WinScreenStreamLib.Cleanup();
         GC.SuppressFinalize(this);
     }

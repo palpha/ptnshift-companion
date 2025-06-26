@@ -54,11 +54,11 @@ public class App : Application
                 .AddSingleton<IFrameDebugger, FrameDebugger>()
                 .AddSingleton<IFrameRateReporter, FrameRateCounter>()
                 .AddSingleton<IPreviewRenderer, PreviewRenderer>()
-                .AddSingleton<IDiagnosticOutputRenderer, DiagnosticOutputRenderer>();
+                .AddSingleton<IDiagnosticOutputRenderer, DiagnosticOutputRenderer>()
+                .AddSingleton<ICaptureEventSource, DefaultCaptureEventSource>();
 
             // Stateless or single-consumer services
             services
-                .AddTransient<ICaptureEventSource, DefaultCaptureEventSource>()
                 .AddTransient<IImageConverter, ImageConverter>()
                 .AddTransient<IImageSaver, ImageSaver>()
                 .AddTransient<ILibUsbWrapper, DefaultLibUsbWrapper>()

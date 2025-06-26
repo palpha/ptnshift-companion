@@ -71,7 +71,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IPreviewRenderer previewRenderer,
         IFrameDebugger frameDebugger,
         IFrameRateReporter frameRateReporter,
-        IDiagnosticOutputRenderer diagnosticOutputRenderer)
+        IDiagnosticOutputRenderer diagnosticOutputRenderer,
+        ICaptureEventSource captureEventSource)
     {
         Logger = logger;
         DisplayService = displayService;
@@ -90,6 +91,7 @@ public partial class MainWindowViewModel : ViewModelBase
         PreviewRenderer.PreviewRendered += OnPreviewRendered;
         FrameDebugger.FrameDumpWritten += OnFrameDumpWritten;
         frameRateReporter.FrameRateChanged += OnFrameRateChanged;
+        captureEventSource.CaptureStateChanged += OnCaptureStateChanged;
 
         PropertyChanged += OnPropertyChanged;
 
@@ -105,6 +107,11 @@ public partial class MainWindowViewModel : ViewModelBase
             1000, ref permissionCheckCts);
         _ = LoadSettingsAsync();
         _ = ExecuteConnectAsync();
+    }
+
+    private void OnCaptureStateChanged(bool isCapturing)
+    {
+        IsCapturing = isCapturing;
     }
 
     private void OnPropertyChanged(object? _, PropertyChangedEventArgs e)
@@ -304,25 +311,12 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (CaptureService.IsCapturing)
         {
-            CaptureService.StopCapture();
+            await CaptureService.StopCaptureAsync();
         }
         else
         {
             CaptureService.SetConfiguration(CaptureConfiguration);
             CaptureService.StartCapture();
-        }
-
-        if (OperatingSystem.IsMacOS())
-        {
-            IsCapturing = CaptureService.IsCapturing;
-        }
-        else if (OperatingSystem.IsWindows())
-        {
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(100);
-                Dispatcher.UIThread.Invoke(() => IsCapturing = CaptureService.IsCapturing);
-            });
         }
 
         Logger.LogInformation("Toggled capture");
@@ -442,7 +436,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         Logger.LogInformation("Emergency reset requested");
 
-        CaptureService.StopCapture();
+        await CaptureService.StopCaptureAsync();
         await ExecuteDisconnectAsync();
         await ExecuteConnectAsync();
         await ExecuteToggleCaptureAsync();

@@ -134,7 +134,7 @@
                     HorizontalAlignment="Left"
                     Text="Capture" />
                 <ToggleSwitch Grid.Row="1" Grid.Column="0"
-                    IsChecked="{Binding IsCapturing, Mode=OneWay}"
+                    IsChecked="{Binding IsCapturing}"
                     Command="{Binding ExecuteToggleCaptureAsync}"
                     OnContent=""
                     OffContent="" />

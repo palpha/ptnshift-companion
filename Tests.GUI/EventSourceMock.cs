@@ -28,6 +28,7 @@ public class EventSourceMock : ICaptureEventSource
     public event FrameCapturedHandler? FullScreenFrameCaptured;
     public event CaptureStoppedHandler? RegionCaptureStopped;
     public event CaptureStoppedHandler? FullScreenCaptureStopped;
+    public event CaptureStateChangedHandler? CaptureStateChanged;
 
     public void InvokeFrameCaptured(FrameCaptureType type, ReadOnlySpan<byte> frameBytes)
     {
@@ -41,6 +42,11 @@ public class EventSourceMock : ICaptureEventSource
     }
 
     public void InvokeCaptureStopped(FrameCaptureType type, CaptureStoppedEvent eventArgs)
+    {
+        throw new NotImplementedException();
+    }
+
+    public void InvokeCaptureStateChanged(bool isCapturing)
     {
         throw new NotImplementedException();
     }

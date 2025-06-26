@@ -6,7 +6,8 @@ namespace Core.Capturing;
 
 public abstract class CaptureServiceBase : ICaptureService
 {
-    protected CaptureServiceBase(IStreamer streamer,
+    protected CaptureServiceBase(
+        IStreamer streamer,
         IDisplayService displayService,
         IPtnshiftFinder ptnshiftFinder,
         IDiagnosticOutputRenderer diagnosticOutputRenderer,
@@ -59,7 +60,18 @@ public abstract class CaptureServiceBase : ICaptureService
 
         if (Streamer.IsCapturing && previousConfiguration != null && previousConfiguration != CurrentConfiguration)
         {
-            UpdateStreamerConfiguration(previousConfiguration);
+            // Use fire-and-forget for the async configuration update
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await UpdateStreamerConfigurationAsync(previousConfiguration);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "Failed to update streamer configuration");
+                }
+            });
         }
 
         Logger.LogInformation("Configuration set");
@@ -96,7 +108,7 @@ public abstract class CaptureServiceBase : ICaptureService
         Logger.LogInformation("Started capture");
     }
 
-    public void StopCapture()
+    public async Task StopCaptureAsync()
     {
         Logger.LogInformation("Stopping capture");
 
@@ -111,14 +123,45 @@ public abstract class CaptureServiceBase : ICaptureService
         Streamer.EventSource.FullScreenFrameCaptured -= OnFullScreenFrameReceived;
         Streamer.EventSource.RegionCaptureStopped -= OnCaptureStopped;
         Streamer.EventSource.FullScreenCaptureStopped -= OnCaptureStopped;
-        StopStreamer();
+        await StopStreamerAsync();
 
         Logger.LogInformation("Stopped capture");
     }
 
-    protected void StopStreamer()
+    /// <summary>
+    /// Synchronous stop method for disposal scenarios where async is not possible.
+    /// </summary>
+    private void StopCaptureInternal()
     {
-        Streamer.Stop();
+        Logger.LogInformation("Stopping capture (internal)");
+
+        if (IsCapturing == false)
+        {
+            Logger.LogInformation("Was not capturing");
+            return;
+        }
+
+        Streamer.EventSource.RegionFrameCaptured -= OnRegionFrameReceived;
+        Streamer.EventSource.FullScreenFrameCaptured -= OnFullScreenFrameReceived;
+        Streamer.EventSource.RegionCaptureStopped -= OnCaptureStopped;
+        Streamer.EventSource.FullScreenCaptureStopped -= OnCaptureStopped;
+
+        // Use a synchronous wait for the async stop operation in disposal scenarios
+        try
+        {
+            StopStreamerAsync().GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Exception during internal stop");
+        }
+
+        Logger.LogInformation("Stopped capture");
+    }
+
+    protected async Task StopStreamerAsync()
+    {
+        await Streamer.StopAsync();
         DiagnosticOutputRenderer.SetText(Subsystem.PixelCapture, "Not capturing");
     }
 
@@ -183,6 +226,12 @@ public abstract class CaptureServiceBase : ICaptureService
         {
             Logger.LogInformation("Region capture stopped: {@Event}", captureStoppedEvent);
 
+            if (captureStoppedEvent.Reason == StopReason.Voluntary)
+            {
+                Logger.LogInformation("Capture stopped voluntarily, ignoring");
+                return;
+            }
+
             var savedTimestamp = LastRestartTimestamp;
             Logger.LogInformation("Awaiting restart lock");
             await StoppedLock.WaitAsync();
@@ -201,15 +250,18 @@ public abstract class CaptureServiceBase : ICaptureService
         }
         finally
         {
-            StoppedLock.Release();
+            if (StoppedLock.CurrentCount == 0)
+            {
+                StoppedLock.Release();
+            }
         }
     }
 
-    protected abstract void UpdateStreamerConfiguration(CaptureConfiguration previousConfiguration);
+    protected abstract Task UpdateStreamerConfigurationAsync(CaptureConfiguration previousConfiguration);
 
     public void Dispose()
     {
         GC.SuppressFinalize(this);
-        StopCapture();
+        StopCaptureInternal();
     }
 }

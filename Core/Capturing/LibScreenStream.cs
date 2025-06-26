@@ -8,8 +8,8 @@ public static class LibScreenStream
     public struct ScreenStreamError
     {
         public int code;
-        public IntPtr domain;       // char* (C string)
-        public IntPtr description;  // char* (C string)
+        public IntPtr domain; // char* (C string)
+        public IntPtr description; // char* (C string)
     }
 
     private const string LibraryName = "libscreenstream.dylib";
@@ -41,4 +41,19 @@ public static class LibScreenStream
 
     [DllImport(LibraryName, EntryPoint = "StopCapture")]
     internal static extern int StopCapture();
+
+    [DllImport(LibraryName, EntryPoint = "GetRegionBufferStats")]
+    public static extern int GetRegionBufferStats();
+
+    [DllImport(LibraryName, EntryPoint = "GetFullScreenBufferStats")]
+    public static extern int GetFullScreenBufferStats();
+
+    [DllImport(LibraryName, EntryPoint = "GetRegionFrameDropStats")]
+    public static extern int GetRegionFrameDropStats();
+
+    [DllImport(LibraryName, EntryPoint = "GetFullScreenFrameDropStats")]
+    public static extern int GetFullScreenFrameDropStats();
+
+    [DllImport(LibraryName, EntryPoint = "ResetPerformanceStats")]
+    public static extern void ResetPerformanceStats();
 }
