@@ -2,7 +2,7 @@ using System.Runtime.InteropServices;
 
 namespace Core.Capturing;
 
-public static class LibScreenStream
+public static partial class LibScreenStream
 {
     [StructLayout(LayoutKind.Sequential)]
     public struct ScreenStreamError
@@ -20,14 +20,17 @@ public static class LibScreenStream
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     public delegate void ErrorCallback(IntPtr errorPtr);
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "CheckCapturePermission")]
-    internal static extern void CheckCapturePermission();
+    [LibraryImport(LibraryName, EntryPoint = nameof(CheckCapturePermission))]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    internal static partial void CheckCapturePermission();
 
-    [DllImport(LibraryName, CallingConvention = CallingConvention.Cdecl, EntryPoint = "IsCapturePermissionGranted")]
-    internal static extern bool IsCapturePermissionGranted();
+    [LibraryImport(LibraryName, EntryPoint = nameof(IsCapturePermissionGranted))]
+    [UnmanagedCallConv(CallConvs = [typeof(System.Runtime.CompilerServices.CallConvCdecl)])]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static partial bool IsCapturePermissionGranted();
 
-    [DllImport(LibraryName, EntryPoint = "StartCapture")]
-    internal static extern int StartCapture(
+    [LibraryImport(LibraryName, EntryPoint = nameof(StartCapture))]
+    internal static partial int StartCapture(
         int displayId,
         int x, int y,
         int width, int height,
@@ -39,21 +42,39 @@ public static class LibScreenStream
         ErrorCallback fullScreenStoppedCallback
     );
 
-    [DllImport(LibraryName, EntryPoint = "StopCapture")]
-    internal static extern int StopCapture();
+    [LibraryImport(LibraryName, EntryPoint = nameof(StopCapture))]
+    internal static partial int StopCapture();
 
-    [DllImport(LibraryName, EntryPoint = "GetRegionBufferStats")]
-    public static extern int GetRegionBufferStats();
+    [LibraryImport(LibraryName, EntryPoint = nameof(GetRegionBufferStats))]
+    internal static partial int GetRegionBufferStats();
 
-    [DllImport(LibraryName, EntryPoint = "GetFullScreenBufferStats")]
-    public static extern int GetFullScreenBufferStats();
+    [LibraryImport(LibraryName, EntryPoint = nameof(GetFullScreenBufferStats))]
+    internal static partial int GetFullScreenBufferStats();
 
-    [DllImport(LibraryName, EntryPoint = "GetRegionFrameDropStats")]
-    public static extern int GetRegionFrameDropStats();
+    [LibraryImport(LibraryName, EntryPoint = nameof(GetRegionFrameDropStats))]
+    internal static partial int GetRegionFrameDropStats();
 
-    [DllImport(LibraryName, EntryPoint = "GetFullScreenFrameDropStats")]
-    public static extern int GetFullScreenFrameDropStats();
+    [LibraryImport(LibraryName, EntryPoint = nameof(GetFullScreenFrameDropStats))]
+    internal static partial int GetFullScreenFrameDropStats();
 
-    [DllImport(LibraryName, EntryPoint = "ResetPerformanceStats")]
-    public static extern void ResetPerformanceStats();
+    [LibraryImport(LibraryName, EntryPoint = nameof(ResetPerformanceStats))]
+    internal static partial void ResetPerformanceStats();
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void WindowListCallback(IntPtr windows, int count);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void ApplicationListCallback(IntPtr apps, int count);
+
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void ThumbnailCallback(IntPtr data, int length);
+
+    [LibraryImport(LibraryName, EntryPoint = nameof(GetAvailableWindows))]
+    internal static partial void GetAvailableWindows(WindowListCallback callback);
+
+    [LibraryImport(LibraryName, EntryPoint = nameof(GetAvailableApplications))]
+    internal static partial void GetAvailableApplications(ApplicationListCallback callback);
+
+    [LibraryImport(LibraryName, EntryPoint = nameof(GetWindowThumbnail))]
+    internal static partial void GetWindowThumbnail(int windowId, ThumbnailCallback callback);
 }
