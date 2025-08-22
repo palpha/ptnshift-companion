@@ -374,7 +374,6 @@ public sealed class Push2Usb : IPush2Usb
 
         if (PushDevice == IntPtr.Zero)
         {
-            Logger.LogWarning("Push device is not connected");
             return;
         }
 
