@@ -23,21 +23,24 @@
         <AvaloniaResource Include="Assets\**" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Avalonia" Version="11.2.5" />
-        <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
-        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5" />
-        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5" />
+        <PackageReference Include="Avalonia" Version="11.3.2" />
+        <PackageReference Include="Avalonia.Desktop" Version="11.3.2" />
+        <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.2" />
+        <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.2" />
         <!--Condition below is needed to remove Avalonia.Diagnostics package from build output in Release configuration.-->
-        <PackageReference Include="Avalonia.Diagnostics" Version="11.2.5">
-            <IncludeAssets Condition="'$(Configuration)' != 'Debug Windows' or '$(Configuration)' != 'Debug MacOS'">None</IncludeAssets>
-            <PrivateAssets Condition="'$(Configuration)' != 'Debug Windows' or '$(Configuration)' != 'Debug MacOS'">All</PrivateAssets>
+        <PackageReference Include="Avalonia.Diagnostics" Version="11.3.2">
+            <IncludeAssets Condition="'$(Configuration)' != 'Debug Windows' or '$(Configuration)' != 'Debug MacOS'">none</IncludeAssets>
+            <PrivateAssets Condition="'$(Configuration)' != 'Debug Windows' or '$(Configuration)' != 'Debug MacOS'">all</PrivateAssets>
         </PackageReference>
         <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+        <PackageReference Include="JetBrains.Annotations" Version="2024.3.0" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0-preview.1.25080.5" />
         <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.0-preview.1.25080.5" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.3-dev-02320" />
         <PackageReference Include="Serilog.Sinks.Console" Version="6.0.1-dev-00953" />
         <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+        <PackageReference Include="Xaml.Behaviors.Interactions" Version="11.3.2" />
+        <PackageReference Include="Xaml.Behaviors.Interactions.Custom" Version="11.3.2" />
     </ItemGroup>
 
     <ItemGroup>

@@ -4,9 +4,11 @@ using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Threading;
 using Core.Capturing;
 using GUI.ViewModels;
+using Microsoft.Extensions.Logging;
 
 namespace GUI.Views;
 
@@ -14,8 +16,8 @@ public partial class MainWindow : Window
 {
     private ICaptureService CaptureService { get; }
     private IDisplayService DisplayService { get; }
-
-    private MainWindowViewModel ViewModel => (MainWindowViewModel) DataContext!;
+    private IModalWindowFactory ModalWindowFactory { get; }
+    private ILogger<MainWindow> Logger { get; }
 
     private PixelPoint previousPointerPosition;
 
@@ -24,12 +26,18 @@ public partial class MainWindow : Window
     private DisplayInfo? SelectedDisplay { get; set; }
     private CancellationTokenSource? DebounceCts { get; set; }
 
+    public MainWindowViewModel ViewModel => (MainWindowViewModel) DataContext!;
+
     public MainWindow(
         ICaptureService captureService,
-        IDisplayService displayService)
+        IDisplayService displayService,
+        IModalWindowFactory modalWindowFactory,
+        ILogger<MainWindow> logger)
     {
         CaptureService = captureService;
         DisplayService = displayService;
+        ModalWindowFactory = modalWindowFactory;
+        Logger = logger;
 
         InitializeComponent();
 
@@ -250,4 +258,17 @@ public partial class MainWindow : Window
 
     private void UpdateConfiguration(CaptureConfiguration cfg) =>
         Dispatcher.UIThread.Post(() => ViewModel.UpdateCaptureConfiguration(cfg));
+
+    protected override void OnLoaded(RoutedEventArgs e)
+    {
+        base.OnLoaded(e);
+
+        // Set up the window selection view model
+        var windowSelectionViewModel = ViewModel.WindowSelectionViewModel;
+        if (windowSelectionViewModel != null)
+        {
+            windowSelectionViewModel.WindowSelected +=
+                x => ViewModel.SelectedWindow = x;
+        }
+    }
 }

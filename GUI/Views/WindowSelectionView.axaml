@@ -1,0 +1,90 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:GUI.ViewModels"
+    xmlns:i="clr-namespace:Avalonia.Xaml.Interactivity;assembly=Xaml.Behaviors.Interactivity"
+    xmlns:behaviors="clr-namespace:GUI.Behaviors"
+    xmlns:views="clr-namespace:GUI.Views"
+    x:Class="GUI.Views.WindowSelectionView"
+    x:DataType="vm:WindowSelectionViewModel"
+    x:Name="SelectWindowView">
+    <StackPanel>
+        <ListBox
+            Name="WindowListBox"
+            ItemsSource="{Binding Windows}"
+            ScrollViewer.HorizontalScrollBarVisibility="Auto"
+            ScrollViewer.VerticalScrollBarVisibility="Disabled"
+            HorizontalAlignment="Stretch"
+            VerticalAlignment="Stretch"
+            Width="960"
+            Height="180"
+            SelectionMode="Single"
+            SelectedItem="{Binding $parent[views:MainWindow].ViewModel.SelectedWindow, Mode=TwoWay}">
+            <i:Interaction.Behaviors>
+                <ValueChangedTriggerBehavior Binding="{Binding $parent[views:MainWindow].ViewModel.SelectedWindow}" />
+                <behaviors:VerticalToHorizontalScrollBehavior />
+            </i:Interaction.Behaviors>
+            <ListBox.Styles>
+                <Style Selector="ListBox">
+                    <Setter Property="MaxHeight" Value="{Binding $parent[Panel].Bounds.Height}" />
+                    <Setter Property="MaxWidth" Value="{Binding $parent[Panel].Bounds.Width}" />
+                </Style>
+                <Style Selector="ListBoxItem">
+                    <Setter Property="Cursor" Value="Hand" />
+                    <Setter Property="Padding" Value="5" />
+                </Style>
+            </ListBox.Styles>
+            <ListBox.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <VirtualizingStackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ListBox.ItemsPanel>
+            <ListBox.ItemTemplate>
+                <DataTemplate DataType="vm:WindowInfo">
+                    <Grid VerticalAlignment="Center"
+                        Margin="5,0" Width="140"
+                        RowDefinitions="Auto,Auto,Auto">
+                        <Image Grid.Row="0"
+                            Source="{Binding Thumbnail}"
+                            Width="120" Height="80"
+                            Stretch="Uniform" HorizontalAlignment="Center"
+                            Margin="0,0,0,5">
+                            <i:Interaction.Behaviors>
+                                <behaviors:LazyLoadThumbnailBehavior />
+                            </i:Interaction.Behaviors>
+                        </Image>
+                        <!-- Loading indicator overlay -->
+                        <ProgressBar Grid.Row="0"
+                            IsVisible="{Binding IsThumbnailLoading}" IsIndeterminate="True"
+                            Width="90" Height="8"
+                            MinWidth="90" MinHeight="8"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Background="Transparent" Foreground="#888" />
+                        <TextBlock Grid.Row="1"
+                            Text="{Binding ApplicationName}"
+                            FontWeight="Bold"
+                            TextAlignment="Center"
+                            HorizontalAlignment="Center" TextWrapping="Wrap" />
+                        <TextBlock Grid.Row="2"
+                            Margin="0,5,0,0"
+                            Text="{Binding Title}"
+                            FontSize="10" FontWeight="Light" FontStyle="Italic"
+                            TextAlignment="Center"
+                            HorizontalAlignment="Center" TextWrapping="Wrap" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+        <Panel IsVisible="{Binding !IsReaktorInList}">
+            <Panel.Styles>
+                <Style Selector="TextBlock">
+                    <Setter Property="Padding" Value="6" />
+                    <Setter Property="HorizontalAlignment" Value="Center" />
+                    <Setter Property="Opacity" Value="0.5" />
+                </Style>
+            </Panel.Styles>
+            <TextBlock Text="Reaktor is running, but no window is available – is it minimized?" IsVisible="{Binding IsReaktorRunning}" />
+            <TextBlock Text="Reaktor is not running." IsVisible="{Binding !IsReaktorRunning}" />
+        </Panel>
+    </StackPanel>
+</UserControl>

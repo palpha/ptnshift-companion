@@ -7,4 +7,5 @@ public record AppSettings(
     int CaptureFrameRate = 30,
     bool IsPreviewEnabled = true,
     bool IsAutoLocateEnabled = true,
-    bool IsVerboseOutput = false);
+    bool IsVerboseOutput = false,
+    bool IsCaptureWindowEnabled = false);

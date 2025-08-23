@@ -1,4 +1,5 @@
 using System;
+using System.Windows.Input;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -41,6 +42,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private int captureFrameRateParsed = 30;
     [ObservableProperty] private CaptureConfiguration captureConfiguration = new(0, 533, 794, 960, 161, 25);
     [ObservableProperty] private WriteableBitmap? imageSource;
+    [ObservableProperty] private WindowInfo? selectedWindow;
+    [ObservableProperty] private bool isCaptureWindowEnabled;
 
     private CancellationTokenSource propertyUpdateCts = new();
     private CancellationTokenSource cfgUpdateCts = new();
@@ -61,6 +64,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private AppSettings? AppSettings { get; set; }
 
+    public WindowSelectionViewModel? WindowSelectionViewModel { get; }
+
     public MainWindowViewModel(
         ILogger<MainWindowViewModel> logger,
         IDisplayService displayService,
@@ -72,7 +77,8 @@ public partial class MainWindowViewModel : ViewModelBase
         IFrameDebugger frameDebugger,
         IFrameRateReporter frameRateReporter,
         IDiagnosticOutputRenderer diagnosticOutputRenderer,
-        ICaptureEventSource captureEventSource)
+        ICaptureEventSource captureEventSource,
+        WindowSelectionViewModel windowSelectionViewModel)
     {
         Logger = logger;
         DisplayService = displayService;
@@ -83,6 +89,7 @@ public partial class MainWindowViewModel : ViewModelBase
         PreviewRenderer = previewRenderer;
         FrameDebugger = frameDebugger;
         DiagnosticOutputRenderer = diagnosticOutputRenderer;
+        WindowSelectionViewModel = windowSelectionViewModel;
 
         Logger.LogInformation("View model created, subscribing to events");
 
@@ -118,57 +125,30 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         switch (e.PropertyName)
         {
-            case nameof(SelectedDisplayInfo):
+            case nameof(SelectedDisplayInfo) when SelectedDisplayInfo is not null:
             {
-                if (SelectedDisplayInfo == null)
-                {
-                    return;
-                }
-
                 UpdateCaptureConfiguration(CaptureConfiguration with {DisplayId = SelectedDisplayInfo!.Id});
-
                 break;
             }
-            case nameof(CaptureX):
+            case nameof(CaptureX) when
+                CaptureX != CaptureConfiguration.CaptureX.ToString()
+                && int.TryParse(CaptureX, out var x):
             {
-                if (CaptureX == CaptureConfiguration.CaptureX.ToString())
-                {
-                    return;
-                }
-
-                if (int.TryParse(CaptureX, out var x))
-                {
-                    UpdateCaptureConfiguration(CaptureConfiguration with {CaptureX = x});
-                }
-
+                UpdateCaptureConfiguration(CaptureConfiguration with {CaptureX = x});
                 break;
             }
-            case nameof(CaptureY):
+            case nameof(CaptureY) when
+                CaptureY != CaptureConfiguration.CaptureY.ToString()
+                && int.TryParse(CaptureY, out var x):
             {
-                if (CaptureY == CaptureConfiguration.CaptureY.ToString())
-                {
-                    return;
-                }
-
-                if (int.TryParse(CaptureY, out var x))
-                {
-                    UpdateCaptureConfiguration(CaptureConfiguration with {CaptureY = x});
-                }
-
+                UpdateCaptureConfiguration(CaptureConfiguration with {CaptureY = x});
                 break;
             }
-            case nameof(CaptureFrameRate):
+            case nameof(CaptureFrameRate) when
+                CaptureFrameRate != CaptureConfiguration.FrameRate.ToString()
+                && int.TryParse(CaptureFrameRate, out var x):
             {
-                if (CaptureFrameRate == CaptureConfiguration.FrameRate.ToString())
-                {
-                    return;
-                }
-
-                if (int.TryParse(CaptureFrameRate, out var x))
-                {
-                    UpdateCaptureConfiguration(CaptureConfiguration with {FrameRate = x});
-                }
-
+                UpdateCaptureConfiguration(CaptureConfiguration with {FrameRate = x});
                 break;
             }
             case nameof(IsPreviewEnabled):
@@ -182,6 +162,15 @@ public partial class MainWindowViewModel : ViewModelBase
                     IsVerboseOutput
                         ? DiagnosticOutputMode.Verbose
                         : DiagnosticOutputMode.Normal;
+                break;
+            }
+            case nameof(IsCaptureWindowEnabled) when WindowSelectionViewModel is not null:
+            {
+                WindowSelectionViewModel.IsVisible = IsCaptureWindowEnabled;
+                break;
+            }
+            case nameof(SelectedWindow):
+            {
                 break;
             }
         }
@@ -265,6 +254,7 @@ public partial class MainWindowViewModel : ViewModelBase
             IsPreviewEnabled = AppSettings.IsPreviewEnabled;
             IsAutoLocateEnabled = AppSettings.IsAutoLocateEnabled;
             IsVerboseOutput = AppSettings.IsVerboseOutput;
+            IsCaptureWindowEnabled = AppSettings.IsCaptureWindowEnabled;
         });
     }
 
@@ -276,7 +266,8 @@ public partial class MainWindowViewModel : ViewModelBase
             CaptureConfiguration.FrameRate,
             IsPreviewEnabled,
             IsAutoLocateEnabled,
-            IsVerboseOutput));
+            IsVerboseOutput,
+            IsCaptureWindowEnabled));
 
     private void OnFrameRateChanged(double frameRate)
     {
@@ -292,7 +283,9 @@ public partial class MainWindowViewModel : ViewModelBase
         Logger.LogInformation("Capture permitted: {IsCapturePermitted}", IsCapturePermitted);
     }
 
-    public async Task ExecuteToggleCaptureAsync()
+    public bool CanToggleCaptureAsync(object msg) => IsCaptureWindowEnabled == false || SelectedWindow is not null;
+
+    public async Task ToggleCaptureAsync()
     {
         Logger.LogInformation("Toggling capture");
 
@@ -434,7 +427,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public void ExecuteCauseCaptureFailure()
     {
-        if (CaptureService is CaptureServiceBase cs && cs.Streamer is MacStreamer ms)
+        if (CaptureService is CaptureServiceBase {Streamer: MacStreamer ms})
         {
             ms.TriggerCaptureFailure();
         }
@@ -447,7 +440,7 @@ public partial class MainWindowViewModel : ViewModelBase
         await CaptureService.StopCaptureAsync();
         await ExecuteDisconnectAsync();
         await ExecuteConnectAsync();
-        await ExecuteToggleCaptureAsync();
+        await ToggleCaptureAsync();
 
         Logger.LogInformation("Emergency reset initiated");
     }
